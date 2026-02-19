@@ -135,19 +135,19 @@ pub fn optimize(args: OptimizeArgs) -> Result<()> {
 
     println!("Contract loaded successfully ({} bytes)", wasm_bytes.len());
 
-    let mut executor = ContractExecutor::new(wasm_bytes)?;
-
-    if let Some(storage_json) = &args.storage {
-        let storage = parse_storage(storage_json)?;
-        executor.set_initial_storage(storage)?;
-    }
-
     let functions_to_analyze = if args.function.is_empty() {
         println!("No functions specified, analyzing all exported functions...");
         crate::utils::wasm::parse_functions(&wasm_bytes)?
     } else {
         args.function.clone()
     };
+
+    let mut executor = ContractExecutor::new(wasm_bytes)?;
+
+    if let Some(storage_json) = &args.storage {
+        let storage = parse_storage(storage_json)?;
+        executor.set_initial_storage(storage)?;
+    }
 
     let mut optimizer = crate::profiler::analyzer::GasOptimizer::new(executor);
 

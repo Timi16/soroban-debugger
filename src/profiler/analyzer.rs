@@ -1,7 +1,7 @@
-use crate::inspector::budget::BudgetInfo;
 use crate::runtime::executor::ContractExecutor;
 use crate::Result;
 use std::collections::HashMap;
+use std::fmt;
 use std::fmt::Write;
 
 #[derive(Debug, Clone)]
@@ -49,6 +49,17 @@ pub enum Priority {
     Critical,
 }
 
+impl fmt::Display for Priority {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Priority::Low => write!(f, "Low"),
+            Priority::Medium => write!(f, "Medium"),
+            Priority::High => write!(f, "High"),
+            Priority::Critical => write!(f, "Critical"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct OptimizationReport {
     pub contract_path: String,
@@ -77,10 +88,10 @@ impl GasOptimizer {
         let host = self.executor.host();
         let budget_start = crate::inspector::budget::BudgetInspector::get_cpu_usage(host);
 
-        let mut operations = Vec::new();
-        let mut storage_accesses: HashMap<String, StorageAccess> = HashMap::new();
+        let operations = Vec::new();
+        let storage_accesses: HashMap<String, StorageAccess> = HashMap::new();
 
-        let result = self.executor.execute(function_name, args)?;
+        self.executor.execute(function_name, args)?;
 
         let budget_end = crate::inspector::budget::BudgetInspector::get_cpu_usage(host);
 
@@ -227,7 +238,7 @@ impl GasOptimizer {
             suggestions.push(OptimizationSuggestion {
                 category: "Type Optimization".to_string(),
                 title: format!("Consider lighter-weight types in function '{}'", function.name),
-                description: "Consider using u32 instead of u64, or Vec<u8> instead of String where possible. Use Symbol for string constants instead of String.",
+                description: "Consider using u32 instead of u64, or Vec<u8> instead of String where possible. Use Symbol for string constants instead of String.".to_string(),
                 estimated_cpu_savings: function.total_cpu / 20,
                 estimated_memory_savings: function.total_memory / 10,
                 location: function.name.clone(),
