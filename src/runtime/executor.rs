@@ -71,18 +71,17 @@ impl ContractExecutor {
             Err(Ok(inv_err)) => match inv_err {
                 InvokeError::Contract(code) => {
                     warn!("Contract returned error code: {}", code);
-                    Err(DebuggerError::ExecutionError(format!(
-                        "Contract error code: {}",
-                        code
-                    ))
-                    .into())
+                    Err(
+                        DebuggerError::ExecutionError(format!("Contract error code: {}", code))
+                            .into(),
+                    )
                 }
                 InvokeError::Abort => {
                     warn!("Contract execution aborted");
-                    Err(DebuggerError::ExecutionError(
-                        "Contract execution aborted".to_string(),
+                    Err(
+                        DebuggerError::ExecutionError("Contract execution aborted".to_string())
+                            .into(),
                     )
-                    .into())
                 }
             },
             Err(Err(inv_err)) => {

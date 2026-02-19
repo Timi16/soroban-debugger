@@ -1,4 +1,4 @@
- /// Pretty printing utilities for debugger output
+/// Pretty printing utilities for debugger output
 pub struct Formatter;
 
 impl Formatter {

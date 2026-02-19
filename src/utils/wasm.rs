@@ -7,16 +7,13 @@ pub fn parse_functions(wasm_bytes: &[u8]) -> Result<Vec<String>> {
     let parser = Parser::new(0);
 
     for payload in parser.parse_all(wasm_bytes) {
-        match payload? {
-            Payload::ExportSection(reader) => {
-                for export in reader {
-                    let export = export?;
-                    if matches!(export.kind, wasmparser::ExternalKind::Func) {
-                        functions.push(export.name.to_string());
-                    }
+        if let Payload::ExportSection(reader) = payload? {
+            for export in reader {
+                let export = export?;
+                if matches!(export.kind, wasmparser::ExternalKind::Func) {
+                    functions.push(export.name.to_string());
                 }
             }
-            _ => {}
         }
     }
 

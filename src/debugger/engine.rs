@@ -16,7 +16,7 @@ impl DebuggerEngine {
     /// Create a new debugger engine
     pub fn new(executor: ContractExecutor, initial_breakpoints: Vec<String>) -> Self {
         let mut breakpoints = BreakpointManager::new();
-        
+
         // Add initial breakpoints
         for bp in initial_breakpoints {
             breakpoints.add(&bp);

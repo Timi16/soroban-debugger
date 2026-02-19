@@ -23,7 +23,7 @@ impl BudgetInspector {
     /// Display budget information
     pub fn display(host: &Host) {
         let info = Self::get_cpu_usage(host);
-        
+
         println!("Resource Budget:");
         println!(
             "  CPU: {} / {} ({:.1}%)",

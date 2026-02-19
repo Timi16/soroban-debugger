@@ -100,12 +100,10 @@ impl DebuggerUI {
             "clear" => {
                 if parts.len() < 2 {
                     println!("Usage: clear <function_name>");
+                } else if self.engine.breakpoints_mut().remove(parts[1]) {
+                    println!("Breakpoint removed: {}", parts[1]);
                 } else {
-                    if self.engine.breakpoints_mut().remove(parts[1]) {
-                        println!("Breakpoint removed: {}", parts[1]);
-                    } else {
-                        println!("No breakpoint at: {}", parts[1]);
-                    }
+                    println!("No breakpoint at: {}", parts[1]);
                 }
             }
             "help" => {
@@ -116,7 +114,10 @@ impl DebuggerUI {
                 return Ok(true);
             }
             _ => {
-                println!("Unknown command: {}. Type 'help' for available commands.", parts[0]);
+                println!(
+                    "Unknown command: {}. Type 'help' for available commands.",
+                    parts[0]
+                );
             }
         }
 

@@ -1,7 +1,7 @@
 pub mod cli;
 pub mod debugger;
-pub mod runtime;
 pub mod inspector;
+pub mod runtime;
 pub mod ui;
 pub mod utils;
 pub mod profiler;
