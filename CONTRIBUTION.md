@@ -181,13 +181,21 @@ chore: update dependencies and build scripts
 ---
 ## Pull Request Process
 
-1. Ensure your branch is up to date with `main`.
-2. Confirm all tests pass and code is linted/formatted.
-3. Update `README.md` and `CHANGELOG.md` if you have added or changed features.
-4. Provide a clear description of your changes in the PR.
-5. Request a review from project maintainers.
-6. Respond to feedback and make necessary revisions.
-7. PRs will be merged after approval and successful CI checks.
+
+**Quick checklist before submitting a PR:**
+
+- [ ] All tests pass locally (`cargo test`)
+- [ ] Code is formatted (`cargo fmt --all --check`)
+- [ ] Clippy is clean (`cargo clippy --all-targets --all-features -- -D warnings`)
+- [ ] Commit message follows [Conventional Commits](https://www.conventionalcommits.org/)
+- [ ] README links to CONTRIBUTING.md (if relevant to your change)
+- [ ] PR description mentions the related issue(s)
+
+4. Push and open the PR.
+5. Fill in the PR description with context, motivation, and any related issues.
+6. Request a review from project maintainers.
+7. Respond to feedback and make necessary revisions.
+8. PRs will be merged after approval and successful CI checks.
 
 ---
 ## Issue Guidelines
