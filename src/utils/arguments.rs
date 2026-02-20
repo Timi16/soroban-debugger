@@ -2,13 +2,33 @@
 //!
 //! This module provides comprehensive conversion from JSON arguments to Soroban Val types.
 //! It handles:
+//! - Typed values via annotation: `{"type": "u32", "value": 10}`
 //! - JSON objects → Soroban Map
 //! - JSON arrays → Soroban Vec
 //! - Primitive types (numbers, strings, booleans)
 //! - Nested structures
+//!
+//! ## Supported Type Annotations
+//!
+//! | Type     | Example                                  | Description                    |
+//! |----------|------------------------------------------|--------------------------------|
+//! | `u32`    | `{"type": "u32", "value": 42}`           | Unsigned 32-bit integer        |
+//! | `i32`    | `{"type": "i32", "value": -5}`           | Signed 32-bit integer          |
+//! | `u64`    | `{"type": "u64", "value": 1000000}`      | Unsigned 64-bit integer        |
+//! | `i64`    | `{"type": "i64", "value": -999}`         | Signed 64-bit integer          |
+//! | `u128`   | `{"type": "u128", "value": 100}`         | Unsigned 128-bit integer       |
+//! | `i128`   | `{"type": "i128", "value": 100}`         | Signed 128-bit integer         |
+//! | `bool`   | `{"type": "bool", "value": true}`        | Boolean                        |
+//! | `symbol` | `{"type": "symbol", "value": "hello"}`   | Soroban Symbol (≤32 chars)     |
+//! | `string` | `{"type": "string", "value": "long..."}`  | Soroban String (any length)    |
+//!
+//! Bare values (without type annotation) still work:
+//! - Numbers → `i128`
+//! - Strings → `Symbol`
+//! - Booleans → `Bool`
 
 use serde_json::Value;
-use soroban_sdk::{Env, Map, Symbol, TryFromVal, Val, Vec as SorobanVec};
+use soroban_sdk::{Env, Map, String as SorobanString, Symbol, TryFromVal, Val, Vec as SorobanVec};
 use thiserror::Error;
 use tracing::{debug, warn};
 
@@ -18,7 +38,7 @@ pub enum ArgumentParseError {
     #[error("Invalid argument: {0}")]
     InvalidArgument(String),
 
-    #[error("Unsupported type: {0}")]
+    #[error("Unsupported type: {0}. Supported types: u32, i32, u64, i64, u128, i128, bool, string, symbol")]
     UnsupportedType(String),
 
     #[error("Failed to convert value: {0}")]
@@ -29,6 +49,17 @@ pub enum ArgumentParseError {
 
     #[error("Empty arguments")]
     EmptyArguments,
+
+    #[error("Type/value mismatch: expected {expected} but got {actual}")]
+    TypeMismatch { expected: String, actual: String },
+
+    #[error("Value out of range for type {type_name}: {value} (valid range: {min}..={max})")]
+    OutOfRange {
+        type_name: String,
+        value: String,
+        min: String,
+        max: String,
+    },
 }
 
 impl From<serde_json::Error> for ArgumentParseError {
@@ -53,12 +84,16 @@ impl ArgumentParser {
     /// Supports:
     /// - JSON arrays → converted to Vec of Soroban values
     /// - JSON objects → converted to a Map (if passed as single argument)
+    /// - Typed annotations → `{"type": "u32", "value": 10}`
     /// - Primitive values
     ///
     /// # Examples
     ///
     /// ```ignore
-    /// // Array of values
+    /// // Array of typed values
+    /// parser.parse_args_string(r#"[{"type": "u32", "value": 10}, {"type": "symbol", "value": "hello"}]"#)?;
+    ///
+    /// // Array of bare values (backward compatible)
     /// parser.parse_args_string(r#"["user", 1000, true]"#)?;
     ///
     /// // Object as single argument
@@ -76,7 +111,8 @@ impl ArgumentParser {
     /// Parse a JSON value into a Vec of Soroban values
     ///
     /// If the JSON is an array, each element becomes a separate argument.
-    /// If the JSON is an object, it's wrapped as a single Map argument.
+    /// If the JSON is an object, it's checked for type annotation first,
+    /// otherwise wrapped as a single Map argument.
     /// Otherwise, the single value becomes one argument.
     fn parse_value(&self, value: &Value) -> Result<Vec<Val>, ArgumentParseError> {
         match value {
@@ -96,9 +132,16 @@ impl ArgumentParser {
                     .collect()
             }
             Value::Object(_) => {
-                debug!("Parsing object as single Map argument");
-                let map_val = self.json_to_soroban_val(value)?;
-                Ok(vec![map_val])
+                // Check if this is a type-annotated value
+                if self.is_typed_annotation(value) {
+                    debug!("Parsing type-annotated single value");
+                    let val = self.parse_typed_value(value)?;
+                    Ok(vec![val])
+                } else {
+                    debug!("Parsing object as single Map argument");
+                    let map_val = self.json_to_soroban_val(value)?;
+                    Ok(vec![map_val])
+                }
             }
             _ => {
                 debug!("Parsing single value");
@@ -107,7 +150,191 @@ impl ArgumentParser {
         }
     }
 
-    /// Convert a JSON value to a Soroban Val
+    /// Check if a JSON value is a type annotation object `{"type": "...", "value": ...}`
+    fn is_typed_annotation(&self, value: &Value) -> bool {
+        if let Value::Object(obj) = value {
+            obj.len() == 2
+                && obj.contains_key("type")
+                && obj.contains_key("value")
+                && obj["type"].is_string()
+        } else {
+            false
+        }
+    }
+
+    /// Parse a type-annotated JSON value `{"type": "u32", "value": 10}`
+    fn parse_typed_value(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        let obj = value.as_object().ok_or_else(|| {
+            ArgumentParseError::InvalidArgument("Expected object for typed value".to_string())
+        })?;
+
+        let type_name = obj["type"].as_str().ok_or_else(|| {
+            ArgumentParseError::InvalidArgument("Type field must be a string".to_string())
+        })?;
+
+        let val = &obj["value"];
+
+        match type_name {
+            "u32" => self.convert_u32(val),
+            "i32" => self.convert_i32(val),
+            "u64" => self.convert_u64(val),
+            "i64" => self.convert_i64(val),
+            "u128" => self.convert_u128(val),
+            "i128" => self.convert_i128(val),
+            "bool" => self.convert_bool(val),
+            "string" => self.convert_string(val),
+            "symbol" => self.convert_symbol(val),
+            other => Err(ArgumentParseError::UnsupportedType(other.to_string())),
+        }
+    }
+
+    /// Convert a JSON number to u32 Val
+    fn convert_u32(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        let n = value
+            .as_u64()
+            .ok_or_else(|| ArgumentParseError::TypeMismatch {
+                expected: "u32 (non-negative integer)".to_string(),
+                actual: format!("{}", value),
+            })?;
+
+        if n > u32::MAX as u64 {
+            return Err(ArgumentParseError::OutOfRange {
+                type_name: "u32".to_string(),
+                value: n.to_string(),
+                min: "0".to_string(),
+                max: u32::MAX.to_string(),
+            });
+        }
+
+        Val::try_from_val(&self.env, &(n as u32)).map_err(|e| {
+            ArgumentParseError::ConversionError(format!("Failed to convert u32 to Val: {:?}", e))
+        })
+    }
+
+    /// Convert a JSON number to i32 Val
+    fn convert_i32(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        let n = value
+            .as_i64()
+            .ok_or_else(|| ArgumentParseError::TypeMismatch {
+                expected: "i32 (integer)".to_string(),
+                actual: format!("{}", value),
+            })?;
+
+        if n < i32::MIN as i64 || n > i32::MAX as i64 {
+            return Err(ArgumentParseError::OutOfRange {
+                type_name: "i32".to_string(),
+                value: n.to_string(),
+                min: i32::MIN.to_string(),
+                max: i32::MAX.to_string(),
+            });
+        }
+
+        Val::try_from_val(&self.env, &(n as i32)).map_err(|e| {
+            ArgumentParseError::ConversionError(format!("Failed to convert i32 to Val: {:?}", e))
+        })
+    }
+
+    /// Convert a JSON number to u64 Val
+    fn convert_u64(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        let n = value
+            .as_u64()
+            .ok_or_else(|| ArgumentParseError::TypeMismatch {
+                expected: "u64 (non-negative integer)".to_string(),
+                actual: format!("{}", value),
+            })?;
+
+        Val::try_from_val(&self.env, &n).map_err(|e| {
+            ArgumentParseError::ConversionError(format!("Failed to convert u64 to Val: {:?}", e))
+        })
+    }
+
+    /// Convert a JSON number to i64 Val
+    fn convert_i64(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        let n = value
+            .as_i64()
+            .ok_or_else(|| ArgumentParseError::TypeMismatch {
+                expected: "i64 (integer)".to_string(),
+                actual: format!("{}", value),
+            })?;
+
+        Val::try_from_val(&self.env, &n).map_err(|e| {
+            ArgumentParseError::ConversionError(format!("Failed to convert i64 to Val: {:?}", e))
+        })
+    }
+
+    /// Convert a JSON number to u128 Val
+    fn convert_u128(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        let n = value
+            .as_u64()
+            .ok_or_else(|| ArgumentParseError::TypeMismatch {
+                expected: "u128 (non-negative integer)".to_string(),
+                actual: format!("{}", value),
+            })?;
+
+        Val::try_from_val(&self.env, &(n as u128)).map_err(|e| {
+            ArgumentParseError::ConversionError(format!("Failed to convert u128 to Val: {:?}", e))
+        })
+    }
+
+    /// Convert a JSON number to i128 Val
+    fn convert_i128(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        let n = value
+            .as_i64()
+            .ok_or_else(|| ArgumentParseError::TypeMismatch {
+                expected: "i128 (integer)".to_string(),
+                actual: format!("{}", value),
+            })?;
+
+        Val::try_from_val(&self.env, &(n as i128)).map_err(|e| {
+            ArgumentParseError::ConversionError(format!("Failed to convert i128 to Val: {:?}", e))
+        })
+    }
+
+    /// Convert a JSON boolean to Bool Val
+    fn convert_bool(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        let b = value
+            .as_bool()
+            .ok_or_else(|| ArgumentParseError::TypeMismatch {
+                expected: "bool".to_string(),
+                actual: format!("{}", value),
+            })?;
+
+        Val::try_from_val(&self.env, &b).map_err(|e| {
+            ArgumentParseError::ConversionError(format!("Failed to convert bool to Val: {:?}", e))
+        })
+    }
+
+    /// Convert a JSON string to Soroban String Val (supports any length)
+    fn convert_string(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        let s = value
+            .as_str()
+            .ok_or_else(|| ArgumentParseError::TypeMismatch {
+                expected: "string".to_string(),
+                actual: format!("{}", value),
+            })?;
+
+        let soroban_str = SorobanString::from_str(&self.env, s);
+        Val::try_from_val(&self.env, &soroban_str).map_err(|e| {
+            ArgumentParseError::ConversionError(format!("Failed to convert String to Val: {:?}", e))
+        })
+    }
+
+    /// Convert a JSON string to Soroban Symbol Val (max 32 chars)
+    fn convert_symbol(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        let s = value
+            .as_str()
+            .ok_or_else(|| ArgumentParseError::TypeMismatch {
+                expected: "symbol (string)".to_string(),
+                actual: format!("{}", value),
+            })?;
+
+        let symbol = Symbol::new(&self.env, s);
+        Val::try_from_val(&self.env, &symbol).map_err(|e| {
+            ArgumentParseError::ConversionError(format!("Failed to convert Symbol to Val: {:?}", e))
+        })
+    }
+
+    /// Convert a JSON value to a Soroban Val (bare values without type annotation)
     fn json_to_soroban_val(&self, json_value: &Value) -> Result<Val, ArgumentParseError> {
         match json_value {
             Value::Null => {
@@ -118,44 +345,37 @@ impl ArgumentParser {
             }
             Value::Bool(b) => {
                 debug!("Converting bool: {}", b);
-                // Use TryFromVal to convert bool to Val
-                let bool_val = Val::try_from_val(&self.env, b).map_err(|e| {
+                Val::try_from_val(&self.env, b).map_err(|e| {
                     ArgumentParseError::ConversionError(format!(
                         "Failed to convert bool to Val: {:?}",
                         e
                     ))
-                })?;
-                Ok(bool_val)
+                })
             }
             Value::Number(num) => {
                 debug!("Converting number: {}", num);
-                // Convert to i128 (Soroban's integer type)
+                // Default bare numbers to i128 (backward compatible)
                 if let Some(i) = num.as_i64() {
-                    // Convert i64 to i128
-                    let i128_val = Val::try_from_val(&self.env, &(i as i128)).map_err(|e| {
+                    Val::try_from_val(&self.env, &(i as i128)).map_err(|e| {
                         ArgumentParseError::ConversionError(format!(
                             "Failed to convert i128 to Val: {:?}",
                             e
                         ))
-                    })?;
-                    Ok(i128_val)
+                    })
                 } else if let Some(u) = num.as_u64() {
-                    // Convert u64 to i128 (with range check)
                     if u > i128::MAX as u64 {
                         return Err(ArgumentParseError::ConversionError(format!(
                             "Number {} exceeds i128::MAX",
                             u
                         )));
                     }
-                    let i128_val = Val::try_from_val(&self.env, &(u as i128)).map_err(|e| {
+                    Val::try_from_val(&self.env, &(u as i128)).map_err(|e| {
                         ArgumentParseError::ConversionError(format!(
                             "Failed to convert i128 to Val: {:?}",
                             e
                         ))
-                    })?;
-                    Ok(i128_val)
+                    })
                 } else if let Some(f) = num.as_f64() {
-                    // Floats are not directly supported in Soroban
                     Err(ArgumentParseError::UnsupportedType(format!(
                         "Floating point numbers are not supported in Soroban: {}",
                         f
@@ -168,25 +388,29 @@ impl ArgumentParser {
                 }
             }
             Value::String(s) => {
-                debug!("Converting string: {}", s);
-                // Convert to Symbol (Soroban's string/symbol type)
+                debug!("Converting string to Symbol: {}", s);
+                // Default bare strings to Symbol (backward compatible)
                 let symbol = Symbol::new(&self.env, s);
-                // Use TryFromVal to convert Symbol to Val
-                let symbol_val = Val::try_from_val(&self.env, &symbol).map_err(|e| {
+                Val::try_from_val(&self.env, &symbol).map_err(|e| {
                     ArgumentParseError::ConversionError(format!(
                         "Failed to convert Symbol to Val: {:?}",
                         e
                     ))
-                })?;
-                Ok(symbol_val)
+                })
             }
             Value::Array(arr) => {
                 debug!("Converting array with {} elements to Vec", arr.len());
                 self.array_to_soroban_vec(arr)
             }
             Value::Object(obj) => {
-                debug!("Converting object with {} fields to Map", obj.len());
-                self.object_to_soroban_map(obj)
+                // Check if this is a type-annotated value inside an array/nested structure
+                if self.is_typed_annotation(json_value) {
+                    debug!("Converting type-annotated value");
+                    self.parse_typed_value(json_value)
+                } else {
+                    debug!("Converting object with {} fields to Map", obj.len());
+                    self.object_to_soroban_map(obj)
+                }
             }
         }
     }
@@ -213,7 +437,7 @@ impl ArgumentParser {
     ///
     /// Supports string keys only (converted to Symbols).
     /// Values can be any supported type: numbers, booleans, strings,
-    /// arrays (Vec), nested objects (Map), etc.
+    /// arrays (Vec), nested objects (Map), type-annotated values, etc.
     fn object_to_soroban_map(
         &self,
         obj: &serde_json::Map<String, Value>,
@@ -221,10 +445,8 @@ impl ArgumentParser {
         let mut soroban_map = Map::<Symbol, Val>::new(&self.env);
 
         for (key, value) in obj.iter() {
-            // Keys must be strings (JSON objects always have string keys)
             let key_symbol = Symbol::new(&self.env, key);
 
-            // Recursively convert the value
             let val = self.json_to_soroban_val(value).map_err(|e| {
                 warn!("Failed to convert map value for key '{}': {}", key, e);
                 ArgumentParseError::ConversionError(format!(
@@ -233,7 +455,6 @@ impl ArgumentParser {
                 ))
             })?;
 
-            // Set the key-value pair (modifies map in-place)
             soroban_map.set(key_symbol, val);
         }
 
@@ -249,6 +470,8 @@ mod tests {
     fn create_parser() -> ArgumentParser {
         ArgumentParser::new(Env::default())
     }
+
+    // ── Backward-compatible bare value tests ─────────────────────────
 
     #[test]
     fn test_parse_empty_array() {
@@ -316,8 +539,6 @@ mod tests {
     fn test_parse_simple_object() {
         let parser = create_parser();
         let result = parser.parse_args_string(r#"{"user":"alice","balance":1000}"#);
-        // This test just verifies basic object parsing
-        // The specific structure would need integration testing with contracts
         assert!(result.is_ok());
         let vals = result.unwrap();
         assert_eq!(vals.len(), 1);
@@ -419,7 +640,6 @@ mod tests {
     #[test]
     fn test_parse_object_with_numeric_keys() {
         let parser = create_parser();
-        // JSON allows string keys but shows numeric string keys
         let result = parser.parse_args_string(r#"{"123":"numeric_key","456":789}"#);
         assert!(result.is_ok());
     }
@@ -443,9 +663,246 @@ mod tests {
     #[test]
     fn test_parse_float_not_supported() {
         let parser = create_parser();
-        // Floats are not directly supported in Soroban, but serde_json parses them
         let result = parser.parse_args_string("3.14");
-        // The parser should attempt to convert, but may fail or convert to nearest integer
-        let _ = result; // Just checking it doesn't panic
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("Floating point"),
+            "Expected float error, got: {}",
+            err
+        );
+    }
+
+    // ── Typed annotation tests ───────────────────────────────────────
+
+    #[test]
+    fn test_typed_u32() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "u32", "value": 42}]"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 1);
+    }
+
+    #[test]
+    fn test_typed_u32_zero() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "u32", "value": 0}]"#);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_typed_u32_max() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "u32", "value": 4294967295}]"#);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_typed_u32_overflow() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "u32", "value": 4294967296}]"#);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("out of range")
+                || err.to_string().contains("Out of range")
+                || err.to_string().contains("u32"),
+            "Expected range error for u32, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_typed_u32_negative_rejected() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "u32", "value": -1}]"#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_typed_i32() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "i32", "value": -42}]"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 1);
+    }
+
+    #[test]
+    fn test_typed_i32_max() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "i32", "value": 2147483647}]"#);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_typed_i32_min() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "i32", "value": -2147483648}]"#);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_typed_i32_overflow() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "i32", "value": 2147483648}]"#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_typed_u64() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "u64", "value": 1000000}]"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 1);
+    }
+
+    #[test]
+    fn test_typed_i64() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "i64", "value": -999}]"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 1);
+    }
+
+    #[test]
+    fn test_typed_u128() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "u128", "value": 100}]"#);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_typed_i128() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "i128", "value": -100}]"#);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_typed_bool() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "bool", "value": true}]"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 1);
+    }
+
+    #[test]
+    fn test_typed_bool_false() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "bool", "value": false}]"#);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_typed_symbol() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "symbol", "value": "hello"}]"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 1);
+    }
+
+    #[test]
+    fn test_typed_string() {
+        let parser = create_parser();
+        let result = parser
+            .parse_args_string(r#"[{"type": "string", "value": "a long string value here"}]"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 1);
+    }
+
+    #[test]
+    fn test_typed_unsupported_type() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "bytes", "value": "abc"}]"#);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.to_string().contains("Unsupported type")
+                || err.to_string().contains("Supported types"),
+            "Expected unsupported type error, got: {}",
+            err
+        );
+    }
+
+    #[test]
+    fn test_typed_type_value_mismatch_bool_as_u32() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "u32", "value": true}]"#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_typed_type_value_mismatch_number_as_string() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "string", "value": 42}]"#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_typed_type_value_mismatch_string_as_bool() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "bool", "value": "true"}]"#);
+        assert!(result.is_err());
+    }
+
+    // ── Mixed typed and bare values ──────────────────────────────────
+
+    #[test]
+    fn test_mixed_typed_and_bare_in_array() {
+        let parser = create_parser();
+        let result =
+            parser.parse_args_string(r#"[{"type": "u32", "value": 10}, "hello", true, 42]"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 4);
+    }
+
+    #[test]
+    fn test_multiple_typed_values_in_array() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(
+            r#"[{"type": "u32", "value": 10}, {"type": "i64", "value": -100}, {"type": "bool", "value": true}]"#,
+        );
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 3);
+    }
+
+    #[test]
+    fn test_typed_annotation_as_top_level() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"{"type": "u32", "value": 10}"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 1);
+    }
+
+    // ── Object vs typed annotation disambiguation ────────────────────
+
+    #[test]
+    fn test_object_with_type_key_but_extra_fields_is_map() {
+        let parser = create_parser();
+        // Has "type" and "value" but also "extra", so NOT a typed annotation
+        let result = parser.parse_args_string(r#"{"type": "u32", "value": 10, "extra": "field"}"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 1); // Treated as a Map
+    }
+
+    #[test]
+    fn test_object_with_non_string_type_is_map() {
+        let parser = create_parser();
+        // "type" is not a string, so NOT a typed annotation
+        let result = parser.parse_args_string(r#"{"type": 123, "value": 10}"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert_eq!(vals.len(), 1); // Treated as a Map
     }
 }

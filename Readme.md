@@ -92,7 +92,37 @@ Options:
   -a, --args <JSON>         Function arguments as JSON array
   -s, --storage <JSON>      Initial storage state as JSON
   -b, --breakpoint <NAME>   Set breakpoint at function name
+      --storage-filter <PATTERN>  Filter storage by key pattern (repeatable)
 ```
+
+### Storage Filtering
+
+Filter large storage outputs by key pattern using `--storage-filter`:
+
+```bash
+# Prefix match: keys starting with "balance:"
+soroban-debug run --contract token.wasm --function mint \
+  --storage-filter 'balance:*'
+
+# Regex match: keys matching a pattern
+soroban-debug run --contract token.wasm --function mint \
+  --storage-filter 're:^user_\d+$'
+
+# Exact match
+soroban-debug run --contract token.wasm --function mint \
+  --storage-filter 'total_supply'
+
+# Multiple filters (combined with OR)
+soroban-debug run --contract token.wasm --function mint \
+  --storage-filter 'balance:*' \
+  --storage-filter 'total_supply'
+```
+
+| Pattern          | Type   | Matches                                |
+|------------------|--------|----------------------------------------|
+| `balance:*`      | Prefix | Keys starting with `balance:`          |
+| `re:^user_\d+$`  | Regex  | Keys matching the regex                |
+| `total_supply`   | Exact  | Only the key `total_supply`            |
 
 ### Interactive Command
 
@@ -115,6 +145,64 @@ soroban-debug inspect [OPTIONS]
 Options:
   -c, --contract <FILE>     Path to the contract WASM file
 ```
+
+### Completions Command
+
+Generate shell completion scripts for your favorite shell:
+
+```bash
+soroban-debug completions bash > /usr/local/etc/bash_completion.d/soroban-debug
+```
+
+Supported shells: `bash`, `zsh`, `fish`, `powershell`.
+
+#### Installation Instructions
+
+**Bash:**
+```bash
+soroban-debug completions bash > /usr/local/etc/bash_completion.d/soroban-debug
+```
+
+**Zsh:**
+```bash
+soroban-debug completions zsh > /usr/local/share/zsh/site-functions/_soroban-debug
+```
+
+**Fish:**
+```bash
+soroban-debug completions fish > ~/.config/fish/completions/soroban-debug.fish
+```
+
+**PowerShell:**
+```powershell
+soroban-debug completions powershell >> $PROFILE
+```
+
+### Compare Command
+
+Compare two execution trace JSON files side-by-side to identify
+differences and regressions in storage, budget, return values, and
+execution flow:
+
+```bash
+soroban-debug compare <TRACE_A> <TRACE_B> [OPTIONS]
+
+Options:
+  -o, --output <FILE>       Output file for the comparison report (default: stdout)
+```
+
+Example:
+
+```bash
+# Compare two saved execution traces
+soroban-debug compare examples/trace_a.json examples/trace_b.json
+
+# Save report to a file
+soroban-debug compare baseline.json new.json --output diff_report.txt
+```
+
+See [`doc/compare.md`](doc/compare.md) for the full trace JSON format reference
+and a regression testing workflow guide.
 
 ## Examples
 
@@ -202,6 +290,64 @@ soroban-debug run --contract complex.wasm --function expensive_operation
 > Warning: High CPU usage detected
 ```
 
+## Supported Argument Types
+
+The debugger supports passing typed arguments to contract functions via the `--args` flag. You can use **bare values** for quick usage or **type annotations** for precise control.
+
+### Bare Values (Default Types)
+
+| JSON Value     | Soroban Type | Example               |
+|----------------|-------------|------------------------|
+| Number         | `i128`      | `10`, `-5`, `999`      |
+| String         | `Symbol`    | `"hello"`              |
+| Boolean        | `Bool`      | `true`, `false`        |
+| Array          | `Vec<Val>`  | `[1, 2, 3]`           |
+| Object         | `Map`       | `{"key": "value"}`     |
+
+```bash
+# Bare values (numbers default to i128, strings to Symbol)
+soroban-debug run --contract counter.wasm --function add --args '[10]'
+soroban-debug run --contract token.wasm --function transfer --args '["Alice", "Bob", 100]'
+```
+
+### Type Annotations
+
+For precise type control, use `{"type": "<type>", "value": <value>}`:
+
+| Type     | Description               | Example                                    |
+|----------|---------------------------|--------------------------------------------|
+| `u32`    | Unsigned 32-bit integer   | `{"type": "u32", "value": 42}`             |
+| `i32`    | Signed 32-bit integer     | `{"type": "i32", "value": -5}`             |
+| `u64`    | Unsigned 64-bit integer   | `{"type": "u64", "value": 1000000}`        |
+| `i64`    | Signed 64-bit integer     | `{"type": "i64", "value": -999}`           |
+| `u128`   | Unsigned 128-bit integer  | `{"type": "u128", "value": 100}`           |
+| `i128`   | Signed 128-bit integer    | `{"type": "i128", "value": -100}`          |
+| `bool`   | Boolean value             | `{"type": "bool", "value": true}`          |
+| `symbol` | Soroban Symbol (≤32 chars)| `{"type": "symbol", "value": "hello"}`     |
+| `string` | Soroban String (any len)  | `{"type": "string", "value": "long text"}` |
+
+```bash
+# Typed arguments for precise control
+soroban-debug run --contract counter.wasm --function add --args '[{"type": "u32", "value": 10}]'
+
+# Mixed typed and bare values
+soroban-debug run --contract token.wasm --function transfer \
+  --args '[{"type": "symbol", "value": "Alice"}, {"type": "symbol", "value": "Bob"}, {"type": "u64", "value": 100}]'
+
+# Soroban String for longer text
+soroban-debug run --contract dao.wasm --function create_proposal \
+  --args '[{"type": "string", "value": "My proposal title"}]'
+```
+
+### Error Handling
+
+The parser provides clear error messages for common issues:
+
+- **Unsupported type**: `Unsupported type: bytes. Supported types: u32, i32, u64, i64, u128, i128, bool, string, symbol`
+- **Out of range**: `Value out of range for type u32: 5000000000 (valid range: 0..=4294967295)`
+- **Type mismatch**: `Type/value mismatch: expected u32 (non-negative integer) but got "hello"`
+- **Invalid JSON**: `JSON parsing error: ...`
+
 ## Interactive Commands Reference
 
 During an interactive debugging session, you can use:
@@ -222,6 +368,29 @@ Commands:
   help                 Show this help message
   q, quit              Exit debugger
 ```
+
+## Configuration File
+
+The debugger supports loading default settings from a `.soroban-debug.toml` file in the project root. CLI flags always override settings defined in the configuration file.
+
+### Example `.soroban-debug.toml`
+
+```toml
+[debug]
+# Default breakpoints to set
+breakpoints = ["verify", "auth"]
+
+[output]
+# Show events by default
+show_events = true
+```
+
+### Supported Settings
+
+| Setting | Path | Description |
+|---------|------|-------------|
+| `breakpoints` | `debug.breakpoints` | List of function names to set as breakpoints |
+| `show_events` | `output.show_events` | Whether to show events by default (`true`/`false`) |
 
 ## Use Cases
 

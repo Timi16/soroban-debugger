@@ -42,3 +42,24 @@ fn test_run_command_event_flags() {
         .stdout(predicate::str::contains("--show-events"))
         .stdout(predicate::str::contains("--filter-topic"));
 }
+
+#[test]
+fn test_run_command_repeat_flag() {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_soroban-debug"));
+    cmd.arg("run").arg("--help");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("--repeat"))
+        .stdout(predicate::str::contains("stress testing"));
+}
+
+#[test]
+fn test_compare_help_command() {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_soroban-debug"));
+    cmd.arg("compare").arg("--help");
+    cmd.assert()
+        .success()
+        .stdout(predicate::str::contains("TRACE_A"))
+        .stdout(predicate::str::contains("TRACE_B"))
+        .stdout(predicate::str::contains("--output"));
+}

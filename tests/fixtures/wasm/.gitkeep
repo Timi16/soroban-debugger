@@ -1,0 +1,8 @@
+# This directory contains pre-compiled WASM test fixtures
+# 
+# To build the fixtures, run:
+#   - Linux/macOS: ./build.sh
+#   - Windows: .\build.ps1
+#
+# The build scripts will compile all contracts from tests/fixtures/contracts/
+# and place the resulting .wasm files in this directory.
