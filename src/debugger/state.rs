@@ -1,8 +1,11 @@
+use crate::inspector::stack::CallStackInspector;
+
 /// Represents the current state of the debugger
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DebugState {
     current_function: Option<String>,
     step_count: usize,
+    call_stack: CallStackInspector,
 }
 
 impl DebugState {
@@ -11,6 +14,7 @@ impl DebugState {
         Self {
             current_function: None,
             step_count: 0,
+            call_stack: CallStackInspector::new(),
         }
     }
 
@@ -34,15 +38,20 @@ impl DebugState {
         self.step_count
     }
 
+    /// Get reference to call stack
+    pub fn call_stack(&self) -> &CallStackInspector {
+        &self.call_stack
+    }
+
+    /// Get mutable reference to call stack
+    pub fn call_stack_mut(&mut self) -> &mut CallStackInspector {
+        &mut self.call_stack
+    }
+
     /// Reset the state
     pub fn reset(&mut self) {
         self.current_function = None;
         self.step_count = 0;
-    }
-}
-
-impl Default for DebugState {
-    fn default() -> Self {
-        Self::new()
+        self.call_stack.clear();
     }
 }

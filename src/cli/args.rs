@@ -62,6 +62,14 @@ pub struct RunArgs {
     #[arg(long)]
     pub show_events: bool,
 
+    /// Show authorization tree during execution
+    #[arg(long)]
+    pub show_auth: bool,
+
+    /// Output format as JSON
+    #[arg(long)]
+    pub json: bool,
+
     /// Filter events by topic
     #[arg(long)]
     pub filter_topic: Option<String>,

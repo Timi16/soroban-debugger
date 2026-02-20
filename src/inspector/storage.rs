@@ -108,13 +108,13 @@ impl StorageInspector {
     /// Display storage in a readable format (no filtering)
     pub fn display(&self) {
         if self.storage.is_empty() {
-            println!("Storage: (empty)");
+            tracing::info!("Storage is empty");
             return;
         }
 
-        println!("Storage:");
+        tracing::info!(entries = self.storage.len(), "Storage entries");
         for (key, value) in &self.storage {
-            println!("  {} = {}", key, value);
+            tracing::debug!(key, value, "Storage entry");
         }
     }
 
@@ -122,35 +122,26 @@ impl StorageInspector {
     /// Prints a notice when filtering is active.
     pub fn display_filtered(&self, filter: &StorageFilter) {
         if self.storage.is_empty() {
-            println!("Storage: (empty)");
+            tracing::info!("Storage is empty");
             return;
         }
 
-        if !filter.is_empty() {
-            println!("Storage (filtered by: {}):", filter.summary());
-        } else {
-            println!("Storage:");
-        }
-
         let mut matched = 0;
-        let mut keys: Vec<&String> = self.storage.keys().collect();
-        keys.sort();
+        let keys: Vec<&String> = self.storage.keys().collect();
 
         for key in keys {
             if filter.matches(key) {
-                println!("  {} = {}", key, self.storage[key]);
+                tracing::debug!(key, value = self.storage[key], "Filtered storage entry");
                 matched += 1;
             }
         }
 
         if matched == 0 && !filter.is_empty() {
-            println!("  (no entries matched the filter)");
+            tracing::info!("No storage entries matched the filter");
         }
 
-        if !filter.is_empty() {
-            let total = self.storage.len();
-            println!("\n  Showing {}/{} entries", matched, total);
-        }
+        let total = self.storage.len();
+        tracing::info!(matched = matched, total = total, filter = filter.summary(), "Storage filtering complete");
     }
 
     /// Get filtered storage entries as a new HashMap
