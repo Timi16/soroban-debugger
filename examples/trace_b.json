@@ -1,0 +1,44 @@
+{
+  "label": "v1.1 optimized – token transfer with fee",
+  "contract": "token_v2.wasm",
+  "function": "transfer",
+  "args": "[\"Alice\", \"Bob\", 100]",
+  "storage": {
+    "balance:Alice": 895,
+    "balance:Bob": 100,
+    "total_supply": 1000,
+    "admin": "Deployer",
+    "fee_pool": 5
+  },
+  "budget": {
+    "cpu_instructions": 38000,
+    "memory_bytes": 14000,
+    "cpu_limit": 100000,
+    "memory_limit": 40960
+  },
+  "return_value": { "status": "ok", "fee_charged": 5 },
+  "call_sequence": [
+    { "function": "transfer", "depth": 0 },
+    { "function": "check_allowance", "args": "Alice", "depth": 1 },
+    { "function": "get_balance", "args": "Alice", "depth": 1 },
+    { "function": "compute_fee", "args": "100", "depth": 1 },
+    { "function": "set_balance", "args": "Alice, 895", "depth": 1 },
+    { "function": "get_balance", "args": "Bob", "depth": 1 },
+    { "function": "set_balance", "args": "Bob, 100", "depth": 1 },
+    { "function": "set_balance", "args": "fee_pool, 5", "depth": 1 },
+    { "function": "emit_event", "args": "transfer", "depth": 1 },
+    { "function": "emit_event", "args": "fee", "depth": 1 }
+  ],
+  "events": [
+    {
+      "contract_id": "CA7QYNF5GE5XEC4HALXWFVQQ5TQWQ5LF7WMXMEQG7BWHBQV26YCWL5",
+      "topics": ["transfer"],
+      "data": "Alice→Bob 100"
+    },
+    {
+      "contract_id": "CA7QYNF5GE5XEC4HALXWFVQQ5TQWQ5LF7WMXMEQG7BWHBQV26YCWL5",
+      "topics": ["fee"],
+      "data": "5"
+    }
+  ]
+}

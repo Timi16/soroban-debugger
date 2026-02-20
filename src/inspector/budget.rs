@@ -23,27 +23,26 @@ impl BudgetInspector {
     /// Display budget information
     pub fn display(host: &Host) {
         let info = Self::get_cpu_usage(host);
-        
-        println!("Resource Budget:");
-        println!(
-            "  CPU: {} / {} ({:.1}%)",
-            info.cpu_instructions,
-            info.cpu_limit,
-            info.cpu_percentage()
-        );
-        println!(
-            "  Memory: {} / {} bytes ({:.1}%)",
-            info.memory_bytes,
-            info.memory_limit,
-            info.memory_percentage()
+
+        let cpu_percent = info.cpu_percentage();
+        let mem_percent = info.memory_percentage();
+
+        tracing::info!(
+            cpu_insns = info.cpu_instructions,
+            cpu_limit = info.cpu_limit,
+            cpu_percent = cpu_percent,
+            memory_bytes = info.memory_bytes,
+            memory_limit = info.memory_limit,
+            memory_percent = mem_percent,
+            "Resource budget"
         );
 
         // Warn if approaching limits
-        if info.cpu_percentage() > 80.0 {
-            println!("  WARNING: High CPU usage!");
+        if cpu_percent > 80.0 {
+            crate::logging::log_high_resource_usage("CPU", cpu_percent);
         }
-        if info.memory_percentage() > 80.0 {
-            println!("  WARNING: High memory usage!");
+        if mem_percent > 80.0 {
+            crate::logging::log_high_resource_usage("memory", mem_percent);
         }
     }
 }

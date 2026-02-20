@@ -1,7 +1,15 @@
+pub mod analyzer;
+pub mod batch;
 pub mod cli;
+pub mod compare;
+pub mod config;
 pub mod debugger;
-pub mod runtime;
 pub mod inspector;
+pub mod logging;
+pub mod profiler;
+pub mod repeat;
+pub mod runtime;
+pub mod simulator;
 pub mod ui;
 pub mod utils;
 

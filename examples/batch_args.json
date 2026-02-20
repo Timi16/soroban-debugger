@@ -1,0 +1,26 @@
+[
+  {
+    "args": "[1, 2]",
+    "expected": "3",
+    "label": "Add 1 + 2"
+  },
+  {
+    "args": "[10, 20]",
+    "expected": "30",
+    "label": "Add 10 + 20"
+  },
+  {
+    "args": "[100, 200]",
+    "expected": "300",
+    "label": "Add 100 + 200"
+  },
+  {
+    "args": "[-5, 5]",
+    "expected": "0",
+    "label": "Add -5 + 5"
+  },
+  {
+    "args": "[0, 0]",
+    "label": "Add 0 + 0 (no expected result)"
+  }
+]

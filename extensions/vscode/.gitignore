@@ -1,0 +1,13 @@
+node_modules
+dist
+out
+.vscode-test
+*.log
+tsconfig.tsbuildinfo
+coverage
+.nyc_output
+.idea
+*.swp
+*.swo
+*~
+.DS_Store

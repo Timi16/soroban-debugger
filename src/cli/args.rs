@@ -1,17 +1,59 @@
+use crate::config::Config;
 use clap::{Parser, Subcommand};
+use clap_complete::Shell;
 use std::path::PathBuf;
+
+/// Verbosity level for output control
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verbosity {
+    Quiet,
+    Normal,
+    Verbose,
+}
+
+impl Verbosity {
+    /// Convert verbosity to log level string for RUST_LOG
+    pub fn to_log_level(self) -> String {
+        match self {
+            Verbosity::Quiet => "error".to_string(),
+            Verbosity::Normal => "info".to_string(),
+            Verbosity::Verbose => "debug".to_string(),
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "soroban-debug")]
 #[command(about = "A debugger for Soroban smart contracts", long_about = None)]
 #[command(version)]
 pub struct Cli {
+    /// Suppress non-essential output (errors and return value only)
+    #[arg(short, long, global = true)]
+    pub quiet: bool,
+
+    /// Show verbose output including internal details
+    #[arg(short, long, global = true)]
+    pub verbose: bool,
+
     #[command(subcommand)]
     pub command: Option<Commands>,
 
     /// Show detailed version information
     #[arg(long)]
     pub version_verbose: bool,
+}
+
+impl Cli {
+    /// Get the effective verbosity level
+    pub fn verbosity(&self) -> Verbosity {
+        if self.quiet {
+            Verbosity::Quiet
+        } else if self.verbose {
+            Verbosity::Verbose
+        } else {
+            Verbosity::Normal
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -24,6 +66,19 @@ pub enum Commands {
 
     /// Inspect contract information without executing
     Inspect(InspectArgs),
+
+    /// Generate shell completion scripts
+    Completions(CompletionsArgs),
+    /// Analyze contract and generate gas optimization suggestions
+    Optimize(OptimizeArgs),
+
+    /// Profile a single function execution and print hotspots + suggestions
+    Profile(ProfileArgs),
+    /// Check compatibility between two contract versions
+    UpgradeCheck(UpgradeCheckArgs),
+
+    /// Compare two execution trace JSON files side-by-side
+    Compare(CompareArgs),
 }
 
 #[derive(Parser)]
@@ -48,6 +103,10 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub breakpoint: Vec<String>,
 
+    /// Network snapshot file to load before execution
+    #[arg(long)]
+    pub network_snapshot: Option<PathBuf>,
+
     /// Enable verbose output
     #[arg(short, long)]
     pub verbose: bool,
@@ -63,9 +122,15 @@ pub struct InteractiveArgs {
     #[arg(short, long)]
     pub contract: PathBuf,
 
-    /// Enable verbose output
-    #[arg(short, long)]
-    pub verbose: bool,
+    /// Network snapshot file to load before starting interactive session
+    #[arg(long)]
+    pub network_snapshot: Option<PathBuf>,
+}
+
+impl InteractiveArgs {
+    pub fn merge_config(&mut self, _config: &Config) {
+        // Future interactive-specific config could go here
+    }
 }
 
 #[derive(Parser)]
@@ -81,4 +146,99 @@ pub struct InspectArgs {
     /// Show contract metadata
     #[arg(long)]
     pub metadata: bool,
+}
+
+#[derive(Parser)]
+pub struct OptimizeArgs {
+    /// Path to the contract WASM file
+    #[arg(short, long)]
+    pub contract: PathBuf,
+
+    /// Function name to analyze (can be specified multiple times)
+    #[arg(short, long)]
+    pub function: Vec<String>,
+
+    /// Function arguments as JSON array (e.g., '["arg1", "arg2"]')
+    #[arg(short, long)]
+    pub args: Option<String>,
+
+    /// Output file for the optimization report (default: stdout)
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
+
+    /// Initial storage state as JSON object
+    #[arg(short, long)]
+    pub storage: Option<String>,
+
+    /// Network snapshot file to load before analysis
+    #[arg(long)]
+    pub network_snapshot: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct UpgradeCheckArgs {
+    /// Path to the old contract WASM file
+    #[arg(short, long)]
+    pub old: PathBuf,
+
+    /// Path to the new contract WASM file
+    #[arg(short, long)]
+    pub new: PathBuf,
+
+    /// Function name to test side-by-side (optional)
+    #[arg(short, long)]
+    pub function: Option<String>,
+
+    /// Function arguments as JSON array for side-by-side test
+    #[arg(short, long)]
+    pub args: Option<String>,
+
+    /// Output file for the compatibility report (default: stdout)
+    #[arg(long)]
+    pub output: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct CompareArgs {
+    /// Path to the first execution trace JSON file (trace A)
+    #[arg(value_name = "TRACE_A")]
+    pub trace_a: PathBuf,
+
+    /// Path to the second execution trace JSON file (trace B)
+    #[arg(value_name = "TRACE_B")]
+    pub trace_b: PathBuf,
+
+    /// Output file for the comparison report (default: stdout)
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct CompletionsArgs {
+    /// Shell to generate completion script for
+    #[arg(value_enum)]
+    pub shell: Shell,
+}
+
+#[derive(Parser)]
+pub struct ProfileArgs {
+    /// Path to the contract WASM file
+    #[arg(short, long)]
+    pub contract: PathBuf,
+
+    /// Function name to execute
+    #[arg(short, long)]
+    pub function: String,
+
+    /// Function arguments as JSON array (e.g., '["arg1", "arg2"]')
+    #[arg(short, long)]
+    pub args: Option<String>,
+
+    /// Output file for the profile report (default: stdout)
+    #[arg(short, long)]
+    pub output: Option<PathBuf>,
+
+    /// Initial storage state as JSON object
+    #[arg(short, long)]
+    pub storage: Option<String>,
 }

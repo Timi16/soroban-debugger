@@ -1,0 +1,16 @@
+# Soroban Debugger Configuration
+# Place this file in your project root as .soroban-debug.toml
+
+[debug]
+# Default breakpoints to set on every run
+breakpoints = ["setup", "on_error"]
+
+# Default verbosity level (0 = quiet, 3 = trace)
+# verbosity = 1
+
+[output]
+# Default output format: "text" or "json"
+format = "text"
+
+# Show contract events by default
+show_events = true

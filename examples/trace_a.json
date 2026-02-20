@@ -1,0 +1,34 @@
+{
+  "label": "v1.0 baseline – token transfer",
+  "contract": "token.wasm",
+  "function": "transfer",
+  "args": "[\"Alice\", \"Bob\", 100]",
+  "storage": {
+    "balance:Alice": 900,
+    "balance:Bob": 100,
+    "total_supply": 1000,
+    "admin": "Deployer"
+  },
+  "budget": {
+    "cpu_instructions": 45000,
+    "memory_bytes": 15360,
+    "cpu_limit": 100000,
+    "memory_limit": 40960
+  },
+  "return_value": { "status": "ok" },
+  "call_sequence": [
+    { "function": "transfer", "depth": 0 },
+    { "function": "get_balance", "args": "Alice", "depth": 1 },
+    { "function": "set_balance", "args": "Alice, 900", "depth": 1 },
+    { "function": "get_balance", "args": "Bob", "depth": 1 },
+    { "function": "set_balance", "args": "Bob, 100", "depth": 1 },
+    { "function": "emit_event", "args": "transfer", "depth": 1 }
+  ],
+  "events": [
+    {
+      "contract_id": "CA7QYNF5GE5XEC4HALXWFVQQ5TQWQ5LF7WMXMEQG7BWHBQV26YCWL5",
+      "topics": ["transfer"],
+      "data": "Alice→Bob 100"
+    }
+  ]
+}

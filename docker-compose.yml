@@ -1,0 +1,9 @@
+services:
+  soroban-debug:
+    image: ghcr.io/your-org/soroban-debug:latest
+    build: .
+    working_dir: /contracts
+    volumes:
+      - ./:/contracts
+    stdin_open: true
+    tty: true
