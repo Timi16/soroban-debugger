@@ -107,6 +107,23 @@ pub fn run(args: RunArgs) -> Result<()> {
         inspector.display_filtered(&storage_filter);
     }
 
+    // If output format is JSON, print full result as JSON and exit
+    if let Some(format) = &args.format {
+        if format.eq_ignore_ascii_case("json") {
+            let mut output = serde_json::json!({
+                "result": format!("{:?}", result),
+            });
+
+            if args.show_events {
+                let events = engine.executor().get_events()?;
+                output["events"] = serde_json::to_value(&events).unwrap_or(serde_json::Value::Null);
+            }
+
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+            return Ok(());
+        }
+    }
+
     Ok(())
 }
 

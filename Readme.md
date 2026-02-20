@@ -320,6 +320,29 @@ Commands:
   q, quit              Exit debugger
 ```
 
+## Configuration File
+
+The debugger supports loading default settings from a `.soroban-debug.toml` file in the project root. CLI flags always override settings defined in the configuration file.
+
+### Example `.soroban-debug.toml`
+
+```toml
+[debug]
+# Default breakpoints to set
+breakpoints = ["verify", "auth"]
+
+[output]
+# Show events by default
+show_events = true
+```
+
+### Supported Settings
+
+| Setting | Path | Description |
+|---------|------|-------------|
+| `breakpoints` | `debug.breakpoints` | List of function names to set as breakpoints |
+| `show_events` | `output.show_events` | Whether to show events by default (`true`/`false`) |
+
 ## Use Cases
 
 ### Debugging Failed Transactions

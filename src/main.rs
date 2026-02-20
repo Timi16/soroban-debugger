@@ -14,27 +14,30 @@ fn main() -> Result<()> {
         .init();
 
     // Parse CLI arguments
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+
+    // Load configuration
+    let config = soroban_debugger::config::Config::load_or_default();
 
     // Execute command
     match cli.command {
-        Commands::Run(args) => {
+        Commands::Run(mut args) => {
+            args.merge_config(&config);
             soroban_debugger::cli::commands::run(args)?;
         }
-        Commands::Interactive(args) => {
+        Commands::Interactive(mut args) => {
+            args.merge_config(&config);
             soroban_debugger::cli::commands::interactive(args)?;
         }
-        Commands::Inspect(args) => {
-            soroban_debugger::cli::commands::inspect(args)?;
-        }
-        Commands::Optimize(args) => {
-            soroban_debugger::cli::commands::optimize(args)?;
-        }
-        Commands::UpgradeCheck(args) => {
-            soroban_debugger::cli::commands::upgrade_check(args)?;
-        }
-        Commands::Compare(args) => {
-            soroban_debugger::cli::commands::compare(args)?;
+        _ => {
+            // Other commands don't have merge_config implemented yet or don't need it
+            match cli.command {
+                Commands::Inspect(args) => soroban_debugger::cli::commands::inspect(args)?,
+                Commands::Optimize(args) => soroban_debugger::cli::commands::optimize(args)?,
+                Commands::UpgradeCheck(args) => soroban_debugger::cli::commands::upgrade_check(args)?,
+                Commands::Compare(args) => soroban_debugger::cli::commands::compare(args)?,
+                _ => unreachable!(),
+            }
         }
     }
 

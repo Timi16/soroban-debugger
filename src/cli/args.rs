@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use crate::config::Config;
 
 #[derive(Parser)]
 #[command(name = "soroban-debug")]
@@ -61,6 +62,10 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub verbose: bool,
 
+    /// Output format (text, json)
+    #[arg(short, long)]
+    pub format: Option<String>,
+
     /// Show contract events emitted during execution
     #[arg(long)]
     pub show_events: bool,
@@ -81,6 +86,37 @@ pub struct RunArgs {
     pub storage_filter: Vec<String>,
 }
 
+impl RunArgs {
+    pub fn merge_config(&mut self, config: &Config) {
+        // Breakpoints
+        if self.breakpoint.is_empty() && !config.debug.breakpoints.is_empty() {
+            self.breakpoint = config.debug.breakpoints.clone();
+        }
+        
+        // Show events
+        if !self.show_events {
+            if let Some(show) = config.output.show_events {
+                self.show_events = show;
+            }
+        }
+
+        // Output Format
+        if self.format.is_none() {
+            self.format = config.output.format.clone();
+        }
+
+        // Verbosity: if config has a level > 0 and CLI verbose is false, enable it
+        if !self.verbose {
+            if let Some(level) = config.debug.verbosity {
+                if level > 0 {
+                    self.verbose = true;
+                }
+            }
+        }
+    }
+}
+
+
 #[derive(Parser)]
 pub struct InteractiveArgs {
     /// Path to the contract WASM file
@@ -95,6 +131,13 @@ pub struct InteractiveArgs {
     #[arg(short, long)]
     pub verbose: bool,
 }
+
+impl InteractiveArgs {
+    pub fn merge_config(&mut self, _config: &Config) {
+        // Future interactive-specific config could go here
+    }
+}
+
 
 #[derive(Parser)]
 pub struct InspectArgs {
