@@ -1,0 +1,56 @@
+{
+  "ledger": {
+    "sequence": 42576829,
+    "timestamp": 1693531200,
+    "network_passphrase": "Test SDF Network ; September 2015"
+  },
+  "accounts": [
+    {
+      "address": "GBRPYHIL2CI3FV4BMSXIUVQTQA7VLMVROCJ2QC543OUNXHTIPTOUR47",
+      "balance": "1000000000000",
+      "sequence": 42576828,
+      "flags": null,
+      "data": null
+    },
+    {
+      "address": "GBBD47UZQ5SBTRNUCFJRVDFEY6ZXIUDETPXICAS5RAILIF76NPEXVPJD",
+      "balance": "500000000000",
+      "sequence": 100,
+      "flags": 0,
+      "data": {
+        "app_version": "1.0.0",
+        "user_id": "user_123"
+      }
+    }
+  ],
+  "contracts": [
+    {
+      "contract_id": "CA7QYNF5GE5XEC4HALXWFVQQ5TQWQ5LF7WMXMEQG7BWHBQV26YCWL5",
+      "wasm_hash": "0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a",
+      "wasm_ref": "./contracts/token.wasm",
+      "storage": {
+        "admin": "GBRPYHIL2CI3FV4BMSXIUVQTQA7VLMVROCJ2QC543OUNXHTIPTOUR47",
+        "total_supply": "1000000000000",
+        "decimals": 7,
+        "name": "Test Token",
+        "symbol": "TEST"
+      }
+    },
+    {
+      "contract_id": "CCH23D5AVA7AXEMDWVUNFXSX2IGKQWBM5JIGXLGFZ32CMPKPV7NQXES",
+      "wasm_hash": "1f2e3d4c5b6a7908191e2d3c4b5a6f7e8d9c0b1a2f3e4d5c6b7a8f9e0d1c2b",
+      "wasm_ref": "./contracts/marketplace.wasm",
+      "storage": {
+        "owner": "GBBD47UZQ5SBTRNUCFJRVDFEY6ZXIUDETPXICAS5RAILIF76NPEXVPJD",
+        "fee_percent": 250,
+        "listings_count": 42,
+        "total_volume": "500000000000",
+        "is_active": true,
+        "supported_tokens": [
+          "CA7QYNF5GE5XEC4HALXWFVQQ5TQWQ5LF7WMXMEQG7BWHBQV26YCWL5",
+          "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4"
+        ]
+      }
+    }
+  ]
+}

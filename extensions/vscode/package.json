@@ -1,0 +1,124 @@
+{
+  "name": "soroban-debugger",
+  "displayName": "Soroban Debugger",
+  "description": "Debug adapter for Soroban smart contracts with breakpoints, variable inspection, and call stack visualization",
+  "version": "0.1.0",
+  "author": "Soroban Team",
+  "publisher": "soroban",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stellar/soroban-debugger.git"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Debuggers"
+  ],
+  "keywords": [
+    "soroban",
+    "stellar",
+    "debug",
+    "debugger",
+    "smart-contract"
+  ],
+  "activationEvents": [
+    "onDebugResolve:soroban",
+    "onCommand:soroban-debugger.getProgramName"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "debuggers": [
+      {
+        "type": "soroban",
+        "label": "Soroban",
+        "program": "./dist/debugAdapter.js",
+        "runtime": "node",
+        "languages": [
+          "rust"
+        ],
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "contractPath"
+            ],
+            "properties": {
+              "contractPath": {
+                "type": "string",
+                "description": "Path to Soroban contract WASM file",
+                "default": "${workspaceFolder}/target/wasm32-unknown-unknown/release/contract.wasm"
+              },
+              "snapshotPath": {
+                "type": "string",
+                "description": "Path to snapshot JSON file for simulator state",
+                "default": "${workspaceFolder}/snapshot.json"
+              },
+              "entrypoint": {
+                "type": "string",
+                "description": "Smart contract function to debug",
+                "default": "main"
+              },
+              "args": {
+                "type": "array",
+                "description": "Arguments to pass to the contract function",
+                "default": []
+              },
+              "trace": {
+                "type": "boolean",
+                "description": "Enable detailed trace logging",
+                "default": false
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "name": "Soroban: Debug Contract",
+            "type": "soroban",
+            "request": "launch",
+            "contractPath": "${workspaceFolder}/target/wasm32-unknown-unknown/release/contract.wasm",
+            "snapshotPath": "${workspaceFolder}/snapshot.json",
+            "entrypoint": "main",
+            "args": [],
+            "trace": false
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Soroban: Debug Contract",
+            "description": "Launch Soroban contract debugger",
+            "body": {
+              "name": "Soroban: Debug Contract",
+              "type": "soroban",
+              "request": "launch",
+              "contractPath": "^\"\\${workspaceFolder}/target/wasm32-unknown-unknown/release/contract.wasm\"",
+              "snapshotPath": "^\"\\${workspaceFolder}/snapshot.json\"",
+              "entrypoint": "main",
+              "args": [],
+              "trace": false
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./out/test/runTest.js",
+    "build": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.75.0",
+    "@vscode/debugprotocol": "^1.65.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@vscode/debugadapter": "^1.65.0",
+    "events": "^3.3.0"
+  }
+}
