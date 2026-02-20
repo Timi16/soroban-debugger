@@ -156,7 +156,7 @@ impl ArgumentParser {
                     Ok(i128_val)
                 } else if let Some(f) = num.as_f64() {
                     // Floats are not directly supported in Soroban
-                     Err(ArgumentParseError::UnsupportedType(format!(
+                    Err(ArgumentParseError::UnsupportedType(format!(
                         "Floating point numbers are not supported in Soroban: {}",
                         f
                     )));
