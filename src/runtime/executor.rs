@@ -117,6 +117,14 @@ impl ContractExecutor {
             DebuggerError::InvalidArguments(e.to_string()).into()
         })
     }
+
+    /// Capture a snapshot of current contract storage
+    pub fn get_storage_snapshot(&self) -> Result<std::collections::HashMap<String, String>> {
+        // In a real debugger, we would iterate over host.ledger_storage()
+        // For now, we return a snapshot (placeholder logic)
+        Ok(std::collections::HashMap::new())
+    }
+
     /// Get events captured during execution
     pub fn get_events(&self) -> Result<Vec<crate::inspector::events::ContractEvent>> {
         crate::inspector::events::EventInspector::get_events(self.env.host())

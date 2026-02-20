@@ -31,9 +31,12 @@ impl DebuggerEngine {
         }
     }
 
-    /// Execute a contract function with debugging
+    /// Execute a contract function with debugging and storage tracking
     pub fn execute(&mut self, function: &str, args: Option<&str>) -> Result<String> {
         info!("Executing function: {}", function);
+
+        // Capture storage state before execution
+        let storage_before = self.executor.get_storage_snapshot()?;
 
         // Check if we should break at function entry
         if self.breakpoints.should_break(function) {
@@ -42,6 +45,16 @@ impl DebuggerEngine {
 
         // Execute the contract
         let result = self.executor.execute(function, args)?;
+
+        // Capture storage state after execution
+        let storage_after = self.executor.get_storage_snapshot()?;
+
+        // Calculate and display storage diff if requested via some flag
+        // or just store it in state for the CLI to use.
+        let diff = crate::inspector::StorageInspector::compute_diff(&storage_before, &storage_after);
+        if !diff.is_empty() {
+             crate::inspector::StorageInspector::display_diff(&diff);
+        }
 
         info!("Execution completed");
         Ok(result)

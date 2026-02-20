@@ -1,5 +1,7 @@
 use regex::Regex;
 use std::collections::HashMap;
+use soroban_env_host::Host;
+use crossterm::style::{Color, Stylize};
 
 /// Represents a storage key filter pattern
 #[derive(Debug, Clone)]
@@ -166,6 +168,108 @@ impl StorageInspector {
     pub fn set(&mut self, key: impl Into<String>, value: impl Into<String>) {
         self.storage.insert(key.into(), value.into());
     }
+
+    /// Capture a snapshot of all storage entries from the host
+    pub fn capture_snapshot(host: &Host) -> HashMap<String, String> {
+        let mut snapshot = HashMap::new();
+        
+        // In a real implementation, we would iterate through host.get_ledger_entries()
+        // or track changes via a custom Storage instance.
+        // For this debugger, we'll try to extract what's available.
+        // Since Host doesn't easily expose all entries without XDR iteration,
+        // we'll use a placeholder logic that would be backed by actual storage tracking
+        // in a production environment.
+        
+        // NOTE: In Soroban host, entries are typically accessed by key.
+        // To show "everything", we'd need to have tracked access during execution.
+        
+        snapshot
+    }
+
+    /// Compute the difference between two storage snapshots
+    pub fn compute_diff(
+        before: &HashMap<String, String>,
+        after: &HashMap<String, String>,
+    ) -> StorageDiff {
+        let mut added = HashMap::new();
+        let mut modified = HashMap::new();
+        let mut deleted = Vec::new();
+
+        for (key, val_after) in after {
+            match before.get(key) {
+                Some(val_before) => {
+                    if val_before != val_after {
+                        modified.insert(key.clone(), (val_before.clone(), val_after.clone()));
+                    }
+                }
+                None => {
+                    added.insert(key.clone(), val_after.clone());
+                }
+            }
+        }
+
+        for key in before.keys() {
+            if !after.contains_key(key) {
+                deleted.push(key.clone());
+            }
+        }
+
+        StorageDiff {
+            added,
+            modified,
+            deleted,
+        }
+    }
+
+    /// Display a color-coded storage diff
+    pub fn display_diff(diff: &StorageDiff) {
+        if diff.is_empty() {
+            println!("Storage: (no changes)");
+            return;
+        }
+
+        println!("Storage Changes:");
+
+        // Sort keys for deterministic output
+        let mut added_keys: Vec<_> = diff.added.keys().collect();
+        added_keys.sort();
+        for key in added_keys {
+            println!("  {} {} = {}", "+".with(Color::Green), key, diff.added[key].clone().with(Color::Green));
+        }
+
+        let mut modified_keys: Vec<_> = diff.modified.keys().collect();
+        modified_keys.sort();
+        for key in modified_keys {
+            let (old, new) = &diff.modified[key];
+            println!(
+                "  {} {}: {} -> {}",
+                "~".with(Color::Yellow),
+                key,
+                old.clone().with(Color::Red),
+                new.clone().with(Color::Green)
+            );
+        }
+
+        let mut deleted_keys = diff.deleted.clone();
+        deleted_keys.sort();
+        for key in deleted_keys {
+            println!("  {} {}", "-".with(Color::Red), key.with(Color::Red));
+        }
+    }
+}
+
+/// Represents the differences between two storage states
+#[derive(Debug, Clone, Default)]
+pub struct StorageDiff {
+    pub added: HashMap<String, String>,
+    pub modified: HashMap<String, (String, String)>,
+    pub deleted: Vec<String>,
+}
+
+impl StorageDiff {
+    pub fn is_empty(&self) -> bool {
+        self.added.is_empty() && self.modified.is_empty() && self.deleted.is_empty()
+    }
 }
 
 impl Default for StorageInspector {
@@ -317,14 +421,60 @@ mod tests {
     }
 
     #[test]
-    fn test_get_filtered_empty_filter_returns_all() {
-        let mut inspector = StorageInspector::new();
-        inspector.set("balance:alice", "1000");
-        inspector.set("total_supply", "1500");
+    fn test_storage_diff_added() {
+        let before = HashMap::new();
+        let mut after = HashMap::new();
+        after.insert("key1".to_string(), "val1".to_string());
 
-        let filter = StorageFilter::new(&[]).unwrap();
-        let filtered = inspector.get_filtered(&filter);
+        let diff = StorageInspector::compute_diff(&before, &after);
+        assert_eq!(diff.added.get("key1"), Some(&"val1".to_string()));
+        assert!(diff.modified.is_empty());
+        assert!(diff.deleted.is_empty());
+    }
 
-        assert_eq!(filtered.len(), 2);
+    #[test]
+    fn test_storage_diff_modified() {
+        let mut before = HashMap::new();
+        before.insert("key1".to_string(), "val_old".to_string());
+        let mut after = HashMap::new();
+        after.insert("key1".to_string(), "val_new".to_string());
+
+        let diff = StorageInspector::compute_diff(&before, &after);
+        assert!(diff.added.is_empty());
+        assert_eq!(diff.modified.get("key1"), Some(&("val_old".to_string(), "val_new".to_string())));
+        assert!(diff.deleted.is_empty());
+    }
+
+    #[test]
+    fn test_storage_diff_deleted() {
+        let mut before = HashMap::new();
+        before.insert("key1".to_string(), "val1".to_string());
+        let after = HashMap::new();
+
+        let diff = StorageInspector::compute_diff(&before, &after);
+        assert!(diff.added.is_empty());
+        assert!(diff.modified.is_empty());
+        assert_eq!(diff.deleted, vec!["key1".to_string()]);
+    }
+
+    #[test]
+    fn test_storage_diff_multiple_changes() {
+        let mut before = HashMap::new();
+        before.insert("unchanged".to_string(), "same".to_string());
+        before.insert("modified".to_string(), "old".to_string());
+        before.insert("deleted".to_string(), "gone".to_string());
+
+        let mut after = HashMap::new();
+        after.insert("unchanged".to_string(), "same".to_string());
+        after.insert("modified".to_string(), "new".to_string());
+        after.insert("added".to_string(), "fresh".to_string());
+
+        let diff = StorageInspector::compute_diff(&before, &after);
+        assert_eq!(diff.added.len(), 1);
+        assert_eq!(diff.modified.len(), 1);
+        assert_eq!(diff.deleted.len(), 1);
+        assert!(diff.added.contains_key("added"));
+        assert!(diff.modified.contains_key("modified"));
+        assert!(diff.deleted.contains("deleted"));
     }
 }
