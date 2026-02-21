@@ -34,6 +34,10 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
+    /// Use ASCII-only output (no Unicode box-drawing or symbols). Use with NO_COLOR for screen reader compatibility.
+    #[arg(long, global = true)]
+    pub no_unicode: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }

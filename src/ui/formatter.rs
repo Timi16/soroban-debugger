@@ -1,5 +1,7 @@
 use crossterm::style::Stylize;
 
+use crate::output::StatusLabel;
+
 /// Pretty printing utilities for debugger output
 pub struct Formatter;
 
@@ -37,41 +39,48 @@ impl Formatter {
         )
     }
 
-    /// Format an informational message in blue.
+    /// Format an informational message (blue when colors enabled, else [INFO] prefix).
     pub fn info(message: impl AsRef<str>) -> String {
         Self::apply_color(message.as_ref(), ColorKind::Info)
     }
 
-    /// Format a success message in green.
+    /// Format a success message (green when colors enabled, else [PASS] prefix).
     pub fn success(message: impl AsRef<str>) -> String {
         Self::apply_color(message.as_ref(), ColorKind::Success)
     }
 
-    /// Format a warning message in yellow.
+    /// Format a warning message (yellow when colors enabled, else [WARN] prefix).
     pub fn warning(message: impl AsRef<str>) -> String {
         Self::apply_color(message.as_ref(), ColorKind::Warning)
     }
 
-    /// Format an error message in red.
+    /// Format an error message (red when colors enabled, else [FAIL] prefix).
     pub fn error(message: impl AsRef<str>) -> String {
         Self::apply_color(message.as_ref(), ColorKind::Error)
     }
 
-    /// Configure whether ANSI colors are enabled.
+    /// Configure whether ANSI colors are enabled. Prefer setting via OutputConfig::configure at startup.
     pub fn configure_colors(enable: bool) {
         COLOR_ENABLED.store(enable, std::sync::atomic::Ordering::Relaxed);
     }
 
-    /// Auto-configure color output based on environment.
-    /// If NO_COLOR is set, colors are disabled.
+    /// Auto-configure color output based on NO_COLOR env. Call OutputConfig::configure in main for full behavior.
     pub fn configure_colors_from_env() {
-        let no_color = std::env::var_os("NO_COLOR").is_some();
+        let no_color = std::env::var("NO_COLOR")
+            .map(|v| !v.trim().is_empty())
+            .unwrap_or(false);
         Self::configure_colors(!no_color);
     }
 
     fn apply_color(message: &str, kind: ColorKind) -> String {
         if !COLOR_ENABLED.load(std::sync::atomic::Ordering::Relaxed) {
-            return message.to_string();
+            let label = match kind {
+                ColorKind::Info => StatusLabel::Info.as_str(),
+                ColorKind::Success => StatusLabel::Pass.as_str(),
+                ColorKind::Warning => StatusLabel::Warning.as_str(),
+                ColorKind::Error => StatusLabel::Fail.as_str(),
+            };
+            return format!("{} {}", label, message);
         }
 
         match kind {

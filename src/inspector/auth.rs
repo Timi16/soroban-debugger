@@ -1,3 +1,4 @@
+use crate::output::OutputConfig;
 use crate::Result;
 use serde::{Deserialize, Serialize};
 use soroban_sdk::{
@@ -74,19 +75,17 @@ impl AuthInspector {
     }
 
     fn print_node(node: &AuthNode, indent: usize, is_last: bool) {
-        let prefix = if indent == 0 {
-            ""
-        } else if is_last {
-            "└── "
+        let prefix: String = if indent == 0 {
+            String::new()
         } else {
-            "├── "
+            OutputConfig::to_ascii(if is_last { "└── " } else { "├── " })
         };
 
         let indent_str = "    ".repeat(indent.saturating_sub(1));
         let full_prefix = if indent > 0 {
-            format!("{}{}", indent_str, prefix)
+            format!("{}{}", indent_str, prefix.as_str())
         } else {
-            "".to_string()
+            String::new()
         };
 
         println!(

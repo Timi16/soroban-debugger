@@ -53,6 +53,12 @@ fn main() -> Result<()> {
     // Parse CLI arguments
     let mut cli = Cli::parse();
 
+    // Accessibility: no-unicode flag and NO_COLOR env (screen reader compatible output)
+    soroban_debugger::output::OutputConfig::configure(cli.no_unicode);
+    soroban_debugger::ui::formatter::Formatter::configure_colors(
+        soroban_debugger::output::OutputConfig::colors_enabled(),
+    );
+
     // Load configuration
     let config = soroban_debugger::config::Config::load_or_default();
 
@@ -71,30 +77,13 @@ fn main() -> Result<()> {
             match cli.command {
                 Commands::Inspect(args) => soroban_debugger::cli::commands::inspect(args)?,
                 Commands::Optimize(args) => soroban_debugger::cli::commands::optimize(args)?,
-                Commands::UpgradeCheck(args) => soroban_debugger::cli::commands::upgrade_check(args)?,
+                Commands::UpgradeCheck(args) => {
+                    soroban_debugger::cli::commands::upgrade_check(args)?
+                }
                 Commands::Compare(args) => soroban_debugger::cli::commands::compare(args)?,
                 _ => unreachable!(),
             }
-    let cli = Cli::parse();
-    let verbosity = cli.verbosity();
-
-    initialize_tracing(verbosity);
-
-    let result = match cli.command {
-        Commands::Run(args) => soroban_debugger::cli::commands::run(args, verbosity),
-        Commands::Interactive(args) => {
-            soroban_debugger::cli::commands::interactive(args, verbosity)
         }
-        Commands::Inspect(args) => soroban_debugger::cli::commands::inspect(args, verbosity),
-        Commands::Optimize(args) => soroban_debugger::cli::commands::optimize(args, verbosity),
-        Commands::UpgradeCheck(args) => {
-            soroban_debugger::cli::commands::upgrade_check(args, verbosity)
-        }
-    };
-
-    if let Err(err) = result {
-        eprintln!("Error: {err:#}");
-        return Err(err);
     }
 
     Ok(())

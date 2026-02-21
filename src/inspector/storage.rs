@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use soroban_env_host::Host;
 use crossterm::style::{Color, Stylize};
 
+use crate::output::OutputConfig;
+
 /// Represents a storage key filter pattern
 #[derive(Debug, Clone)]
 pub enum FilterPattern {
@@ -217,7 +219,7 @@ impl StorageInspector {
         }
     }
 
-    /// Display a color-coded storage diff
+    /// Display a color-coded storage diff (with text labels when colors disabled for accessibility)
     pub fn display_diff(diff: &StorageDiff) {
         if diff.is_empty() {
             println!("Storage: (no changes)");
@@ -225,31 +227,45 @@ impl StorageInspector {
         }
 
         println!("Storage Changes:");
+        let use_color = OutputConfig::colors_enabled();
 
         // Sort keys for deterministic output
         let mut added_keys: Vec<_> = diff.added.keys().collect();
         added_keys.sort();
         for key in added_keys {
-            println!("  {} {} = {}", "+".with(Color::Green), key, diff.added[key].clone().with(Color::Green));
+            let val = &diff.added[key];
+            if use_color {
+                println!("  {} {} = {}", "+".with(Color::Green), key, val.clone().with(Color::Green));
+            } else {
+                println!("  [ADDED] {} = {}", key, val);
+            }
         }
 
         let mut modified_keys: Vec<_> = diff.modified.keys().collect();
         modified_keys.sort();
         for key in modified_keys {
             let (old, new) = &diff.modified[key];
-            println!(
-                "  {} {}: {} -> {}",
-                "~".with(Color::Yellow),
-                key,
-                old.clone().with(Color::Red),
-                new.clone().with(Color::Green)
-            );
+            if use_color {
+                println!(
+                    "  {} {}: {} -> {}",
+                    "~".with(Color::Yellow),
+                    key,
+                    old.clone().with(Color::Red),
+                    new.clone().with(Color::Green)
+                );
+            } else {
+                println!("  [CHANGED] {}: {} -> {}", key, old, new);
+            }
         }
 
         let mut deleted_keys = diff.deleted.clone();
         deleted_keys.sort();
         for key in deleted_keys {
-            println!("  {} {}", "-".with(Color::Red), key.with(Color::Red));
+            if use_color {
+                println!("  {} {}", "-".with(Color::Red), key.with(Color::Red));
+            } else {
+                println!("  [REMOVED] {}", key);
+            }
         }
     }
 }
