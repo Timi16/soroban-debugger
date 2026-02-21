@@ -35,6 +35,18 @@ pub struct Cli {
     #[arg(short, long, global = true)]
     pub verbose: bool,
 
+    /// Show historical budget trend visualization
+    #[arg(long)]
+    pub budget_trend: bool,
+
+    /// Filter budget trend by contract hash
+    #[arg(long)]
+    pub trend_contract: Option<String>,
+
+    /// Filter budget trend by function name
+    #[arg(long)]
+    pub trend_function: Option<String>,
+
     #[command(subcommand)]
     pub command: Option<Commands>,
 
@@ -42,7 +54,6 @@ pub struct Cli {
     #[arg(long)]
     pub version_verbose: bool,
 }
-
 impl Cli {
     /// Get the effective verbosity level
     pub fn verbosity(&self) -> Verbosity {
@@ -134,6 +145,10 @@ pub struct RunArgs {
     /// Execute the contract call N times for stress testing
     #[arg(long)]
     pub repeat: Option<u32>,
+
+    /// Mock cross-contract return: CONTRACT_ID.function=return_value (repeatable)
+    #[arg(long, value_name = "CONTRACT_ID.function=return_value")]
+    pub mock: Vec<String>,
 
     /// Filter storage output by key pattern (repeatable). Supports:
     ///   prefix*       — match keys starting with prefix

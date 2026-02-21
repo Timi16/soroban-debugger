@@ -5,6 +5,7 @@ pub mod codegen;
 pub mod compare;
 pub mod config;
 pub mod debugger;
+pub mod history;
 pub mod inspector;
 pub mod logging;
 pub mod profiler;

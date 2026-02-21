@@ -79,6 +79,16 @@ fn main() -> Result<()> {
             Ok(())
         }
         None => {
+            if cli.budget_trend {
+                soroban_debugger::cli::commands::show_budget_trend(
+                    cli.trend_contract.as_deref(),
+                    cli.trend_function.as_deref(),
+                )
+            } else {
+                let mut cmd = Cli::command();
+                cmd.print_help()?;
+                Ok(())
+            }
             let mut cmd = Cli::command();
             cmd.print_help()?;
             println!();
