@@ -21,6 +21,7 @@ pub struct ContractExecutor {
     env: Env,
     contract_address: Address,
     mock_registry: Arc<Mutex<MockRegistry>>,
+    wasm_bytes: Vec<u8>,
     timeout_secs: u64,
 }
 
@@ -40,6 +41,7 @@ impl ContractExecutor {
             env,
             contract_address,
             mock_registry: Arc::new(Mutex::new(MockRegistry::default())),
+            wasm_bytes: wasm,
             timeout_secs: 30,
         })
     }
@@ -52,6 +54,13 @@ impl ContractExecutor {
     pub fn execute(&self, function: &str, args: Option<&str>) -> Result<String> {
         info!("Executing function: {}", function);
 
+        // Validate function existence
+        let exported_functions = crate::utils::wasm::parse_functions(&self.wasm_bytes)?;
+        if !exported_functions.contains(&function.to_string()) {
+            return Err(DebuggerError::InvalidFunction(function.to_string()).into());
+        }
+
+        // Convert function name to Symbol
         let func_symbol = Symbol::new(&self.env, function);
 
         let parsed_args = if let Some(args_json) = args {
@@ -94,31 +103,41 @@ impl ContractExecutor {
             Ok(Err(conv_err)) => Err(DebuggerError::ExecutionError(format!(
                 "Return value conversion failed: {:?}",
                 conv_err
-            ))
-            .into()),
+            ))),
+            Ok(Ok(val)) => {
+                info!("Function executed successfully");
+                Ok(format!("{:?}", val))
+            }
+            Ok(Err(conv_err)) => {
+                warn!("Return value conversion failed: {:?}", conv_err);
+                Err(DebuggerError::ExecutionError(format!(
+                    "Return value conversion failed: {:?}",
+                    conv_err
+                ))
+                .into())
+            }
             Err(Ok(inv_err)) => match inv_err {
                 InvokeError::Contract(code) => {
                     warn!("Contract returned error code: {}", code);
-                    Err(
-                        DebuggerError::ExecutionError(format!("Contract error code: {}", code))
-                            .into(),
-                    )
+                    Err(DebuggerError::ExecutionError(format!(
+                        "The contract returned an error code: {}. This typically indicates a business logic failure (e.g. `panic!` or `require!`).",
+                        code
+                    )))
                 }
                 InvokeError::Abort => {
                     warn!("Contract execution aborted");
-                    Err(
-                        DebuggerError::ExecutionError("Contract execution aborted".to_string())
-                            .into(),
-                    )
+                    Err(DebuggerError::ExecutionError(
+                        "Contract execution was aborted. This could be due to a trap, budget exhaustion, or an explicit abort call."
+                            .to_string(),
+                    ))
                 }
             },
             Err(Err(inv_err)) => {
                 warn!("Invocation error conversion failed: {:?}", inv_err);
                 Err(DebuggerError::ExecutionError(format!(
-                    "Invocation error conversion failed: {:?}",
+                    "Invocation failed with internal error: {:?}",
                     inv_err
-                ))
-                .into())
+                )))
             }
         };
 

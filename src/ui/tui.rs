@@ -41,6 +41,7 @@ impl DebuggerUI {
                 }
                 Err(e) => {
                     tracing::error!(error = %e, "Command execution error");
+                    eprintln!("{:?}", e);
                 }
             }
         }
