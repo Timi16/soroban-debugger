@@ -31,6 +31,99 @@ pub fn parse_functions(wasm_bytes: &[u8]) -> Result<Vec<String>> {
     Ok(functions)
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CrossContractCall {
+    pub caller: String,
+    pub target: String,
+    pub host_function: String,
+}
+
+fn is_cross_contract_import(module: &str, name: &str) -> bool {
+    let module = module.to_ascii_lowercase();
+    let name = name.to_ascii_lowercase();
+
+    (module.contains("env") || module.contains("soroban"))
+        && (name.contains("invoke_contract")
+            || name.contains("call_contract")
+            || name.contains("try_call"))
+}
+
+fn map_import_to_target(import_name: &str) -> String {
+    let import_name = import_name.to_ascii_lowercase();
+    if import_name.contains("invoke_contract") || import_name.contains("call_contract") {
+        "external_contract".to_string()
+    } else {
+        format!("external::{}", import_name)
+    }
+}
+
+/// Parse cross-contract call sites by scanning WASM calls to known host imports.
+pub fn parse_cross_contract_calls(wasm_bytes: &[u8]) -> Result<Vec<CrossContractCall>> {
+    use std::collections::{BTreeSet, HashMap};
+    use wasmparser::Operator;
+
+    let mut export_names: HashMap<u32, String> = HashMap::new();
+    let mut cross_contract_imports: HashMap<u32, String> = HashMap::new();
+    let mut imported_func_count = 0u32;
+    let mut local_function_index = 0u32;
+    let mut calls = Vec::new();
+    let mut dedupe = BTreeSet::new();
+
+    for payload in Parser::new(0).parse_all(wasm_bytes) {
+        match payload? {
+            Payload::ImportSection(reader) => {
+                for import in reader {
+                    let import = import?;
+                    if let wasmparser::TypeRef::Func(_) = import.ty {
+                        let current_index = imported_func_count;
+                        imported_func_count += 1;
+                        if is_cross_contract_import(import.module, import.name) {
+                            cross_contract_imports
+                                .insert(current_index, import.name.to_string());
+                        }
+                    }
+                }
+            }
+            Payload::ExportSection(reader) => {
+                for export in reader {
+                    let export = export?;
+                    if matches!(export.kind, wasmparser::ExternalKind::Func) {
+                        export_names.insert(export.index, export.name.to_string());
+                    }
+                }
+            }
+            Payload::CodeSectionEntry(body) => {
+                let current_fn_index = imported_func_count + local_function_index;
+                local_function_index += 1;
+                let caller = export_names
+                    .get(&current_fn_index)
+                    .cloned()
+                    .unwrap_or_else(|| format!("func_{current_fn_index}"));
+
+                let mut reader = body.get_operators_reader()?;
+                while !reader.eof() {
+                    if let Operator::Call { function_index } = reader.read()? {
+                        if let Some(host_fn_name) = cross_contract_imports.get(&function_index) {
+                            let target = map_import_to_target(host_fn_name);
+                            let key = format!("{caller}->{target}:{host_fn_name}");
+                            if dedupe.insert(key) {
+                                calls.push(CrossContractCall {
+                                    caller: caller.clone(),
+                                    target,
+                                    host_function: host_fn_name.clone(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Ok(calls)
+}
+
 /// Get high-level module statistics and section breakdown from a WASM binary.
 pub fn get_module_info(wasm_bytes: &[u8]) -> Result<ModuleInfo> {
     let mut info = ModuleInfo {
@@ -527,6 +620,62 @@ mod tests {
         bytes
     }
 
+    fn encode_string(bytes: &mut Vec<u8>, value: &str) {
+        bytes.extend_from_slice(&uleb128(value.len()));
+        bytes.extend_from_slice(value.as_bytes());
+    }
+
+    fn append_section(module: &mut Vec<u8>, id: u8, section: &[u8]) {
+        module.push(id);
+        module.extend_from_slice(&uleb128(section.len()));
+        module.extend_from_slice(section);
+    }
+
+    fn make_wasm_with_cross_contract_call() -> Vec<u8> {
+        let mut module = vec![0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00];
+
+        // Type section: one () -> () function type.
+        let mut ty = Vec::new();
+        ty.extend_from_slice(&uleb128(1));
+        ty.push(0x60);
+        ty.push(0x00);
+        ty.push(0x00);
+        append_section(&mut module, 1, &ty);
+
+        // Import section: import function env::invoke_contract.
+        let mut import = Vec::new();
+        import.extend_from_slice(&uleb128(1));
+        encode_string(&mut import, "env");
+        encode_string(&mut import, "invoke_contract");
+        import.push(0x00); // import kind: function
+        import.extend_from_slice(&uleb128(0)); // type index 0
+        append_section(&mut module, 2, &import);
+
+        // Function section: one local function using type index 0.
+        let mut functions = Vec::new();
+        functions.extend_from_slice(&uleb128(1));
+        functions.extend_from_slice(&uleb128(0));
+        append_section(&mut module, 3, &functions);
+
+        // Export section: export local function at index 1 (import is index 0).
+        let mut exports = Vec::new();
+        exports.extend_from_slice(&uleb128(1));
+        encode_string(&mut exports, "entrypoint");
+        exports.push(0x00); // export kind: function
+        exports.extend_from_slice(&uleb128(1));
+        append_section(&mut module, 7, &exports);
+
+        // Code section: body = call imported function index 0; end.
+        let mut code = Vec::new();
+        code.extend_from_slice(&uleb128(1)); // one body
+        let body = vec![0x00, 0x10, 0x00, 0x0b]; // no locals, call 0, end
+        code.extend_from_slice(&uleb128(body.len()));
+        code.extend_from_slice(&body);
+        append_section(&mut module, 10, &code);
+
+        module
+    }
+
     // ── metadata-present tests ────────────────────────────────────────────────
 
     #[test]
@@ -606,6 +755,17 @@ implementation_notes=Line-based format
         let wasm = make_custom_section_wasm("contractmeta", bad_bytes);
         let meta = extract_contract_metadata(&wasm).expect("should not error");
         assert!(meta.is_empty());
+    }
+
+    #[test]
+    fn parse_cross_contract_calls_detects_invoke_contract_import() {
+        let wasm = make_wasm_with_cross_contract_call();
+        let calls = parse_cross_contract_calls(&wasm).expect("should parse calls");
+
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].caller, "entrypoint");
+        assert_eq!(calls[0].target, "external_contract");
+        assert_eq!(calls[0].host_function, "invoke_contract");
     }
 
     #[test]

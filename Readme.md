@@ -257,7 +257,10 @@ soroban-debug inspect [OPTIONS]
 
 Options:
   -c, --contract <FILE>     Path to the contract WASM file
+      --dependency-graph     Export cross-contract dependency graph (DOT + Mermaid)
 ```
+
+For full examples, see [docs/dependency-graph.md](docs/dependency-graph.md).
 
 ### Completions Command
 

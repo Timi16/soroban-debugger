@@ -274,6 +274,10 @@ pub struct InspectArgs {
     /// Show contract metadata
     #[arg(long)]
     pub metadata: bool,
+
+    /// Show cross-contract dependency graph in DOT and Mermaid formats
+    #[arg(long)]
+    pub dependency_graph: bool,
 }
 
 #[derive(Parser)]

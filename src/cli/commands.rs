@@ -801,11 +801,38 @@ pub fn inspect(args: InspectArgs, _verbosity: Verbosity) -> Result<()> {
         if functions.is_empty() {
             println!("  (No exported functions found)");
         } else {
-            for func in functions {
-                println!("  {} {}", OutputConfig::to_ascii("•"), func);
             for function in functions {
-                println!("  - {}", function);
+                println!("  {} {}", OutputConfig::to_ascii("•"), function);
             }
+        }
+    }
+
+    if args.dependency_graph {
+        println!("\n{}", OutputConfig::rule_line(54));
+        println!("  Contract Dependency Graph");
+        println!("  {}", OutputConfig::rule_line(52));
+
+        let calls = crate::utils::wasm::parse_cross_contract_calls(&wasm_bytes)?;
+        if calls.is_empty() {
+            println!("  (No cross-contract call instructions detected)");
+        } else {
+            let contract_name = args
+                .contract
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("contract")
+                .to_string();
+
+            let mut graph = crate::analyzer::graph::DependencyGraph::new();
+            graph.add_node(contract_name.clone());
+            for call in calls {
+                graph.add_edge(contract_name.clone(), call.target);
+            }
+
+            println!("\nDOT:");
+            println!("{}", graph.to_dot());
+            println!("\nMermaid:");
+            println!("{}", graph.to_mermaid());
         }
     }
 
