@@ -194,14 +194,14 @@ impl UpgradeAnalyzer {
         // Run old
         let old_result = old_executor.execute(function, args);
         let old_output = match &old_result {
-            Ok(v) => v.clone(),
+            Ok(v) => v.result.clone(),
             Err(e) => format!("Error: {}", e),
         };
 
         // Run new
         let new_result = new_executor.execute(function, args);
         let new_output = match &new_result {
-            Ok(v) => v.clone(),
+            Ok(v) => v.result.clone(),
             Err(e) => format!("Error: {}", e),
         };
 

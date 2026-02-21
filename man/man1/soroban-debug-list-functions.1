@@ -1,0 +1,16 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH soroban-debug-list-functions 1  "soroban-debug-list-functions " 
+.SH NAME
+soroban\-debug\-list\-functions \- List exported functions of a contract (shorthand for `inspect \-\-functions`)
+.SH SYNOPSIS
+\fBsoroban\-debug\-list\-functions\fR <\fB\-c\fR|\fB\-\-contract\fR> [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+List exported functions of a contract (shorthand for `inspect \-\-functions`)
+.SH OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-contract\fR \fI<CONTRACT>\fR
+Path to the contract WASM file
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

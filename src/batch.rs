@@ -93,7 +93,7 @@ impl BatchExecutor {
 
         let (result_str, success, error) = match executor_result {
             Ok(executor) => match executor.execute(&self.function, Some(&item.args)) {
-                Ok(result) => (result, true, None),
+                Ok(result) => (result.result, true, None),
                 Err(e) => (String::new(), false, Some(format!("{:#}", e))),
             },
             Err(e) => (

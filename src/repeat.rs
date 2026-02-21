@@ -193,7 +193,7 @@ impl RepeatRunner {
             let mut engine = DebuggerEngine::new(executor, self.breakpoints.clone());
 
             let start = Instant::now();
-            let result = engine.execute(function, args)?;
+            let execution_result = engine.execute(function, args)?;
             let duration = start.elapsed();
 
             let budget = BudgetInspector::get_cpu_usage(engine.executor().host());
@@ -210,7 +210,7 @@ impl RepeatRunner {
                 iteration: i,
                 duration,
                 budget,
-                result,
+                result: execution_result.result,
             });
         }
 

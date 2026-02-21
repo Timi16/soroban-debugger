@@ -55,7 +55,7 @@ fn main() -> Result<()> {
     let result = match cli.command {
         Some(Commands::Run(mut args)) => {
             args.merge_config(&config);
-            soroban_debugger::cli::commands::run(args, verbosity)
+            soroban_debugger::cli::commands::run(*args, verbosity)
         }
         Some(Commands::Interactive(mut args)) => {
             args.merge_config(&config);

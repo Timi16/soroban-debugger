@@ -263,7 +263,10 @@ impl StorageInspector {
         }
 
         println!("\nStorage Access Pattern Report");
-        println!("{:<30} | {:<10} | {:<10} | {:<20}", "Key", "Reads", "Writes", "Notes");
+        println!(
+            "{:<30} | {:<10} | {:<10} | {:<20}",
+            "Key", "Reads", "Writes", "Notes"
+        );
         println!("{:-<30}-+-{:-<10}-+-{:-<10}-+-{:-<20}", "", "", "", "");
 
         let mut entries: Vec<_> = report.stats.into_iter().collect();
@@ -301,8 +304,16 @@ impl StorageInspector {
             println!(
                 "{:<30} | {:<10} | {:<10} | {}",
                 key_display.with(Color::Cyan),
-                stat.reads.to_string().with(if stat.reads > 5 { Color::Red } else { Color::White }),
-                stat.writes.to_string().with(if stat.writes > stat.reads { Color::Yellow } else { Color::White }),
+                stat.reads.to_string().with(if stat.reads > 5 {
+                    Color::Red
+                } else {
+                    Color::White
+                }),
+                stat.writes.to_string().with(if stat.writes > stat.reads {
+                    Color::Yellow
+                } else {
+                    Color::White
+                }),
                 display_notes.with(Color::DarkGrey)
             );
         }
@@ -685,6 +696,8 @@ mod tests {
 
         let result = StorageState::import_from_file(temp_file.path());
         assert!(result.is_err());
+    }
+
     // ── Storage Access Pattern Analyzer tests ────────────────────────
 
     #[test]
@@ -729,7 +742,7 @@ mod tests {
 
         assert!(report.hot_read_keys.contains(&"hot_key".to_string()));
         assert!(!report.hot_read_keys.contains(&"read_only".to_string()));
-        
+
         assert!(report.write_heavy_keys.contains(&"write_heavy".to_string()));
         assert!(!report.write_heavy_keys.contains(&"hot_key".to_string()));
 
@@ -742,7 +755,7 @@ mod tests {
     fn test_display_access_report() {
         // Just verify it runs without panicking with sorted items
         let mut inspector = StorageInspector::new();
-        
+
         for _ in 0..10 {
             inspector.track_read("config:global");
         }

@@ -1,5 +1,6 @@
 use clap::CommandFactory;
 use std::fs;
+use std::io;
 use std::path::Path;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -66,11 +67,28 @@ fn command_stdout(program: &str, args: &[&str]) -> Option<String> {
 }
 
 fn generate_man_pages() -> std::io::Result<()> {
-    let man_dir = Path::new("man").join("man1");
-    fs::create_dir_all(&man_dir)?;
-
     let cmd = Cli::command();
-    render_recursive(&cmd, &man_dir, "")
+    let repo_man_dir = Path::new("man").join("man1");
+
+    match render_to_dir(&cmd, &repo_man_dir) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == io::ErrorKind::PermissionDenied => {
+            let out_dir = std::env::var("OUT_DIR").unwrap_or_else(|_| "target".to_string());
+            let fallback_dir = Path::new(&out_dir).join("man1");
+            println!(
+                "cargo:warning=Cannot write man pages to {} (permission denied). Writing to {} instead.",
+                repo_man_dir.display(),
+                fallback_dir.display()
+            );
+            render_to_dir(&cmd, &fallback_dir)
+        }
+        Err(err) => Err(err),
+    }
+}
+
+fn render_to_dir(cmd: &clap::Command, dir: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(dir)?;
+    render_recursive(cmd, dir, "")
 }
 
 fn render_recursive(cmd: &clap::Command, out_dir: &Path, prefix: &str) -> std::io::Result<()> {

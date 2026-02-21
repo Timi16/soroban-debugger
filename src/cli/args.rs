@@ -57,9 +57,10 @@ impl Cli {
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)]
 pub enum Commands {
     /// Run a contract function with the debugger
-    Run(RunArgs),
+    Run(Box<RunArgs>),
 
     /// Start an interactive debugging session
     Interactive(InteractiveArgs),
@@ -114,9 +115,33 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub verbose: bool,
 
+    /// Output format (text, json)
+    #[arg(long)]
+    pub format: Option<String>,
+
+    /// Show contract events emitted during execution
+    #[arg(long)]
+    pub show_events: bool,
+
+    /// Show authorization tree during execution
+    #[arg(long)]
+    pub show_auth: bool,
+
     /// Output in JSON format
     #[arg(long)]
     pub json: bool,
+
+    /// Output format (text, json)
+    #[arg(long)]
+    pub format: Option<String>,
+
+    /// Show contract events emitted during execution
+    #[arg(long)]
+    pub show_events: bool,
+
+    /// Show authorization tree during execution
+    #[arg(long)]
+    pub show_auth: bool,
 
     /// Filter events by topic
     #[arg(long)]
@@ -173,6 +198,10 @@ pub struct RunArgs {
     /// Append to output file instead of overwriting
     #[arg(long, requires = "save_output")]
     pub append: bool,
+
+    /// Path to JSON file with custom error code definitions
+    #[arg(long)]
+    pub error_spec: Option<PathBuf>,
 }
 
 impl RunArgs {
