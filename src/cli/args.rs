@@ -350,7 +350,6 @@ pub struct CompletionsArgs {
     pub shell: Shell,
 }
 
-
 /// Arguments for the TUI dashboard subcommand
 #[derive(Parser)]
 pub struct TuiArgs {
