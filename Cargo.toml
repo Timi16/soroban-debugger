@@ -16,7 +16,8 @@ soroban-env-host = { version = "22.0.0", features = ["testutils"] }
 soroban-env-common = "22.0.0"
 
 # CLI and argument parsing
-clap = { version = "4.5", features = ["derive", "cargo"] }
+clap = { version = "4.5", features = ["derive", "cargo", "string"] }
+clap_complete = "4.5"
 
 # Terminal UI
 ratatui = "0.26"
@@ -36,18 +37,32 @@ serde_json = "1.0"
 
 # Logging
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
 
 # Utilities
 itertools = "0.12"
 regex = "1.10"
 toml = "0.8"
+rayon = "1.10"
+colored = "2.0"
+chrono = "0.4"
+stellar-xdr = { version = "22.1.0", features = ["curr"] }
+
+[build-dependencies]
+clap = { version = "4.5", features = ["derive", "cargo", "string"] }
+clap_mangen = "0.2"
+clap_complete = "4.5"
 
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.0"
 tempfile = "3.8"
 proptest = "1.0"
+criterion = "0.5"
+
+[[bench]]
+name = "debugger_bench"
+harness = false
 
 [profile.release]
 opt-level = 3

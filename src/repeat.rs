@@ -1,9 +1,9 @@
 use crate::debugger::engine::DebuggerEngine;
 use crate::inspector::budget::{BudgetInfo, BudgetInspector};
+use crate::logging;
 use crate::runtime::executor::ContractExecutor;
 use crate::Result;
 use std::time::{Duration, Instant};
-use tracing::info;
 
 /// Stats captured from a single execution run.
 #[derive(Debug, Clone)]
@@ -106,59 +106,41 @@ impl AggregateStats {
     /// Pretty-print the aggregate stats to stdout.
     pub fn display(&self) {
         let n = self.runs.len();
-        println!("\n╔══════════════════════════════════════════╗");
-        println!("║       Repeat Run Summary ({n} runs)        ║");
-        println!("╠══════════════════════════════════════════╣");
 
-        println!("║  Execution Time                          ║");
-        println!(
-            "║    Min: {:>10.3}ms                      ║",
-            self.min_duration.as_secs_f64() * 1000.0
+        // Log aggregate statistics with structured fields
+        tracing::info!(
+            runs = n,
+            min_duration_ms = self.min_duration.as_secs_f64() * 1000.0,
+            max_duration_ms = self.max_duration.as_secs_f64() * 1000.0,
+            avg_duration_ms = self.avg_duration.as_secs_f64() * 1000.0,
+            min_cpu = self.min_cpu,
+            max_cpu = self.max_cpu,
+            avg_cpu = self.avg_cpu,
+            min_memory = self.min_memory,
+            max_memory = self.max_memory,
+            avg_memory = self.avg_memory,
+            inconsistent = self.inconsistent_results,
+            "Repeat run summary"
         );
-        println!(
-            "║    Max: {:>10.3}ms                      ║",
-            self.max_duration.as_secs_f64() * 1000.0
-        );
-        println!(
-            "║    Avg: {:>10.3}ms                      ║",
-            self.avg_duration.as_secs_f64() * 1000.0
-        );
 
-        println!("╠══════════════════════════════════════════╣");
-        println!("║  CPU Budget (instructions)               ║");
-        println!("║    Min: {:>12}                      ║", self.min_cpu);
-        println!("║    Max: {:>12}                      ║", self.max_cpu);
-        println!("║    Avg: {:>12}                      ║", self.avg_cpu);
-
-        println!("╠══════════════════════════════════════════╣");
-        println!("║  Memory Budget (bytes)                   ║");
-        println!("║    Min: {:>12}                      ║", self.min_memory);
-        println!("║    Max: {:>12}                      ║", self.max_memory);
-        println!("║    Avg: {:>12}                      ║", self.avg_memory);
-
-        println!("╠══════════════════════════════════════════╣");
+        // Log individual inconsistent results if any
         if self.inconsistent_results {
-            println!("║  ⚠ WARNING: Inconsistent results!       ║");
-            println!("║  Not all runs produced the same output.  ║");
-            // Show which runs differ
             let first = &self.runs[0].result;
             for run in &self.runs {
                 if run.result != *first {
-                    println!(
-                        "║    Run #{} differs: {}",
-                        run.iteration,
-                        truncate(&run.result, 28)
+                    tracing::warn!(
+                        iteration = run.iteration,
+                        result = %run.result,
+                        "Inconsistent result detected"
                     );
                 }
             }
-        } else {
-            println!("║  ✓ All runs produced consistent results  ║");
         }
-        println!("╚══════════════════════════════════════════╝");
     }
 }
 
 /// Truncate a string to `max_len` characters, adding "…" if truncated.
+#[allow(dead_code)]
 fn truncate(s: &str, max_len: usize) -> String {
     if s.chars().count() <= max_len {
         s.to_string()
@@ -190,13 +172,16 @@ impl RepeatRunner {
 
     /// Run the contract function `n` times and return aggregate stats.
     pub fn run(&self, function: &str, args: Option<&str>, n: u32) -> Result<AggregateStats> {
-        println!("Running {} iteration(s) of '{}'...\n", n, function);
+        logging::log_repeat_execution(function, n as usize);
 
         let mut all_runs = Vec::with_capacity(n as usize);
 
         for i in 1..=n {
-            info!("Repeat run {}/{}", i, n);
-            println!("--- Run {}/{} ---", i, n);
+            tracing::debug!(
+                iteration = i,
+                total = n,
+                "Starting repeat execution iteration"
+            );
 
             // Fresh executor and engine per run for isolation
             let mut executor = ContractExecutor::new(self.wasm_bytes.clone())?;
@@ -213,12 +198,12 @@ impl RepeatRunner {
 
             let budget = BudgetInspector::get_cpu_usage(engine.executor().host());
 
-            println!(
-                "  Result: {} | Time: {:.3}ms | CPU: {} | Mem: {} bytes",
-                truncate(&result, 40),
-                duration.as_secs_f64() * 1000.0,
-                budget.cpu_instructions,
-                budget.memory_bytes,
+            tracing::debug!(
+                iteration = i,
+                duration_ms = duration.as_secs_f64() * 1000.0,
+                cpu = budget.cpu_instructions,
+                memory = budget.memory_bytes,
+                "Iteration complete"
             );
 
             all_runs.push(RunStats {

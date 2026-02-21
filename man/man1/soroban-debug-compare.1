@@ -1,0 +1,22 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH soroban-debug-compare 1  "soroban-debug-compare " 
+.SH NAME
+soroban\-debug\-compare \- Compare two execution trace JSON files side\-by\-side
+.SH SYNOPSIS
+\fBsoroban\-debug\-compare\fR [\fB\-o\fR|\fB\-\-output\fR] [\fB\-h\fR|\fB\-\-help\fR] <\fITRACE_A\fR> <\fITRACE_B\fR> 
+.SH DESCRIPTION
+Compare two execution trace JSON files side\-by\-side
+.SH OPTIONS
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fI<OUTPUT>\fR
+Output file for the comparison report (default: stdout)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+<\fITRACE_A\fR>
+Path to the first execution trace JSON file (trace A)
+.TP
+<\fITRACE_B\fR>
+Path to the second execution trace JSON file (trace B)

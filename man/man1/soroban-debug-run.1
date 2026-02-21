@@ -1,0 +1,76 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH soroban-debug-run 1  "soroban-debug-run " 
+.SH NAME
+soroban\-debug\-run \- Run a contract function with the debugger
+.SH SYNOPSIS
+\fBsoroban\-debug\-run\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-b\fR|\fB\-\-breakpoint\fR] [\fB\-\-network\-snapshot\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-format\fR] [\fB\-\-show\-events\fR] [\fB\-\-show\-auth\fR] [\fB\-\-json\fR] [\fB\-\-filter\-topic\fR] [\fB\-\-repeat\fR] [\fB\-\-storage\-filter\fR] [\fB\-\-instruction\-debug\fR] [\fB\-\-step\-instructions\fR] [\fB\-\-step\-mode\fR] [\fB\-\-dry\-run\fR] [\fB\-\-export\-storage\fR] [\fB\-\-import\-storage\fR] [\fB\-\-batch\-args\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Run a contract function with the debugger
+.SH OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-contract\fR \fI<CONTRACT>\fR
+Path to the contract WASM file
+.TP
+\fB\-f\fR, \fB\-\-function\fR \fI<FUNCTION>\fR
+Function name to execute
+.TP
+\fB\-a\fR, \fB\-\-args\fR \fI<ARGS>\fR
+Function arguments as JSON array (e.g., \*(Aq["arg1", "arg2"]\*(Aq)
+.TP
+\fB\-s\fR, \fB\-\-storage\fR \fI<STORAGE>\fR
+Initial storage state as JSON object
+.TP
+\fB\-b\fR, \fB\-\-breakpoint\fR \fI<BREAKPOINT>\fR
+Set breakpoint at function name
+.TP
+\fB\-\-network\-snapshot\fR \fI<NETWORK_SNAPSHOT>\fR
+Network snapshot file to load before execution
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Enable verbose output
+.TP
+\fB\-\-format\fR \fI<FORMAT>\fR
+Output format (text, json)
+.TP
+\fB\-\-show\-events\fR
+Show contract events emitted during execution
+.TP
+\fB\-\-show\-auth\fR
+Show authorization tree during execution
+.TP
+\fB\-\-json\fR
+Output format as JSON
+.TP
+\fB\-\-filter\-topic\fR \fI<FILTER_TOPIC>\fR
+Filter events by topic
+.TP
+\fB\-\-repeat\fR \fI<REPEAT>\fR
+Execute the contract call N times for stress testing
+.TP
+\fB\-\-storage\-filter\fR \fI<PATTERN>\fR
+Filter storage output by key pattern (repeatable). Supports: prefix*       — match keys starting with prefix re:<regex>    — match keys by regex exact_key     — match key exactly
+.TP
+\fB\-\-instruction\-debug\fR
+Enable instruction\-level debugging
+.TP
+\fB\-\-step\-instructions\fR
+Start with instruction stepping enabled
+.TP
+\fB\-\-step\-mode\fR \fI<STEP_MODE>\fR [default: into]
+Step mode for instruction debugging (into, over, out, block)
+.TP
+\fB\-\-dry\-run\fR
+Execute contract in dry\-run mode: simulate execution without persisting storage changes
+.TP
+\fB\-\-export\-storage\fR \fI<EXPORT_STORAGE>\fR
+Export storage state to JSON file after execution
+.TP
+\fB\-\-import\-storage\fR \fI<IMPORT_STORAGE>\fR
+Import storage state from JSON file before execution
+.TP
+\fB\-\-batch\-args\fR \fI<BATCH_ARGS>\fR
+Path to JSON file containing array of argument sets for batch execution
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

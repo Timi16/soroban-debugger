@@ -1,7 +1,11 @@
-use regex::Regex;
-use std::collections::HashMap;
-use soroban_env_host::Host;
+use anyhow::{Context, Result};
 use crossterm::style::{Color, Stylize};
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use soroban_env_host::Host;
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 
 /// Represents a storage key filter pattern
 #[derive(Debug, Clone)]
@@ -12,6 +16,36 @@ pub enum FilterPattern {
     Regex(Regex),
     /// Exact match: `balance` matches the key exactly
     Exact(String),
+}
+
+/// Storage state snapshot for import/export
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct StorageState {
+    pub entries: HashMap<String, String>,
+}
+
+impl StorageState {
+    /// Export storage state to JSON file
+    pub fn export_to_file<P: AsRef<Path>>(
+        entries: &HashMap<String, String>,
+        path: P,
+    ) -> Result<()> {
+        let state = StorageState {
+            entries: entries.clone(),
+        };
+        let json =
+            serde_json::to_string_pretty(&state).context("Failed to serialize storage state")?;
+        fs::write(path.as_ref(), json).context("Failed to write storage file")?;
+        Ok(())
+    }
+
+    /// Import storage state from JSON file
+    pub fn import_from_file<P: AsRef<Path>>(path: P) -> Result<HashMap<String, String>> {
+        let contents = fs::read_to_string(path.as_ref()).context("Failed to read storage file")?;
+        let state: StorageState =
+            serde_json::from_str(&contents).context("Failed to parse storage JSON")?;
+        Ok(state.entries)
+    }
 }
 
 impl FilterPattern {
@@ -88,12 +122,18 @@ impl StorageFilter {
 pub struct StorageInspector {
     // Storage will be tracked here
     storage: HashMap<String, String>,
+    // Tracks frequency of key reads
+    reads: HashMap<String, usize>,
+    // Tracks frequency of key writes
+    writes: HashMap<String, usize>,
 }
 
 impl StorageInspector {
     pub fn new() -> Self {
         Self {
             storage: HashMap::new(),
+            reads: HashMap::new(),
+            writes: HashMap::new(),
         }
     }
 
@@ -110,13 +150,13 @@ impl StorageInspector {
     /// Display storage in a readable format (no filtering)
     pub fn display(&self) {
         if self.storage.is_empty() {
-            println!("Storage: (empty)");
+            tracing::info!("Storage is empty");
             return;
         }
 
-        println!("Storage:");
+        tracing::info!(entries = self.storage.len(), "Storage entries");
         for (key, value) in &self.storage {
-            println!("  {} = {}", key, value);
+            tracing::debug!(key, value, "Storage entry");
         }
     }
 
@@ -124,35 +164,31 @@ impl StorageInspector {
     /// Prints a notice when filtering is active.
     pub fn display_filtered(&self, filter: &StorageFilter) {
         if self.storage.is_empty() {
-            println!("Storage: (empty)");
+            tracing::info!("Storage is empty");
             return;
         }
 
-        if !filter.is_empty() {
-            println!("Storage (filtered by: {}):", filter.summary());
-        } else {
-            println!("Storage:");
-        }
-
         let mut matched = 0;
-        let mut keys: Vec<&String> = self.storage.keys().collect();
-        keys.sort();
+        let keys: Vec<&String> = self.storage.keys().collect();
 
         for key in keys {
             if filter.matches(key) {
-                println!("  {} = {}", key, self.storage[key]);
+                tracing::debug!(key, value = self.storage[key], "Filtered storage entry");
                 matched += 1;
             }
         }
 
         if matched == 0 && !filter.is_empty() {
-            println!("  (no entries matched the filter)");
+            tracing::info!("No storage entries matched the filter");
         }
 
-        if !filter.is_empty() {
-            let total = self.storage.len();
-            println!("\n  Showing {}/{} entries", matched, total);
-        }
+        let total = self.storage.len();
+        tracing::info!(
+            matched = matched,
+            total = total,
+            filter = filter.summary(),
+            "Storage filtering complete"
+        );
     }
 
     /// Get filtered storage entries as a new HashMap
@@ -166,24 +202,137 @@ impl StorageInspector {
 
     /// Insert a storage entry (used for testing and state tracking)
     pub fn set(&mut self, key: impl Into<String>, value: impl Into<String>) {
-        self.storage.insert(key.into(), value.into());
+        let k = key.into();
+        let v = value.into();
+        self.storage.insert(k.clone(), v.clone());
+        self.track_write(&k);
+    }
+
+    /// Record a read access for a key
+    pub fn track_read(&mut self, key: &str) {
+        *self.reads.entry(key.to_string()).or_insert(0) += 1;
+    }
+
+    /// Record a write access for a key
+    pub fn track_write(&mut self, key: &str) {
+        *self.writes.entry(key.to_string()).or_insert(0) += 1;
+    }
+
+    /// Analyze access patterns
+    pub fn analyze_access_patterns(&self) -> AccessPatternReport {
+        let mut stats: HashMap<String, AccessStats> = HashMap::new();
+
+        for (k, v) in &self.reads {
+            stats.entry(k.clone()).or_default().reads = *v;
+        }
+
+        for (k, v) in &self.writes {
+            stats.entry(k.clone()).or_default().writes = *v;
+        }
+
+        let mut hot_read_keys = Vec::new();
+        let mut write_heavy_keys = Vec::new();
+        let mut read_never_written = Vec::new();
+
+        for (key, stat) in &stats {
+            if stat.reads > 5 {
+                hot_read_keys.push(key.clone());
+            }
+            if stat.writes > stat.reads {
+                write_heavy_keys.push(key.clone());
+            }
+            if stat.reads > 0 && stat.writes == 0 {
+                read_never_written.push(key.clone());
+            }
+        }
+
+        AccessPatternReport {
+            stats,
+            hot_read_keys,
+            write_heavy_keys,
+            read_never_written,
+        }
+    }
+
+    /// Display visually sorted table of access patterns
+    pub fn display_access_report(&self) {
+        let report = self.analyze_access_patterns();
+        if report.stats.is_empty() {
+            println!("No storage access patterns recorded.");
+            return;
+        }
+
+        println!("\nStorage Access Pattern Report");
+        println!(
+            "{:<30} | {:<10} | {:<10} | {:<20}",
+            "Key", "Reads", "Writes", "Notes"
+        );
+        println!("{:-<30}-+-{:-<10}-+-{:-<10}-+-{:-<20}", "", "", "", "");
+
+        let mut entries: Vec<_> = report.stats.into_iter().collect();
+        // Sort primarily by highest reads, then highest writes, then alphabetically
+        entries.sort_by(|a, b| {
+            b.1.reads
+                .cmp(&a.1.reads)
+                .then_with(|| b.1.writes.cmp(&a.1.writes))
+                .then_with(|| a.0.cmp(&b.0))
+        });
+
+        for (key, stat) in entries {
+            let mut notes = Vec::new();
+            if stat.reads > 5 {
+                notes.push("HOT READ (Suggest Caching)");
+            } else if stat.reads > 0 && stat.writes == 0 {
+                notes.push("READ-ONLY");
+            }
+            if stat.writes > stat.reads {
+                notes.push("WRITE-HEAVY");
+            }
+
+            let display_notes = if notes.is_empty() {
+                "".to_string()
+            } else {
+                notes.join(", ")
+            };
+
+            let key_display = if key.len() > 30 {
+                format!("{}...", &key[0..27])
+            } else {
+                key.clone()
+            };
+
+            println!(
+                "{:<30} | {:<10} | {:<10} | {}",
+                key_display.with(Color::Cyan),
+                stat.reads.to_string().with(if stat.reads > 5 {
+                    Color::Red
+                } else {
+                    Color::White
+                }),
+                stat.writes.to_string().with(if stat.writes > stat.reads {
+                    Color::Yellow
+                } else {
+                    Color::White
+                }),
+                display_notes.with(Color::DarkGrey)
+            );
+        }
+        println!();
     }
 
     /// Capture a snapshot of all storage entries from the host
-    pub fn capture_snapshot(host: &Host) -> HashMap<String, String> {
-        let mut snapshot = HashMap::new();
-        
+    pub fn capture_snapshot(_host: &Host) -> HashMap<String, String> {
         // In a real implementation, we would iterate through host.get_ledger_entries()
         // or track changes via a custom Storage instance.
         // For this debugger, we'll try to extract what's available.
         // Since Host doesn't easily expose all entries without XDR iteration,
         // we'll use a placeholder logic that would be backed by actual storage tracking
         // in a production environment.
-        
+
         // NOTE: In Soroban host, entries are typically accessed by key.
         // To show "everything", we'd need to have tracked access during execution.
-        
-        snapshot
+
+        HashMap::new()
     }
 
     /// Compute the difference between two storage snapshots
@@ -234,7 +383,12 @@ impl StorageInspector {
         let mut added_keys: Vec<_> = diff.added.keys().collect();
         added_keys.sort();
         for key in added_keys {
-            println!("  {} {} = {}", "+".with(Color::Green), key, diff.added[key].clone().with(Color::Green));
+            println!(
+                "  {} {} = {}",
+                "+".with(Color::Green),
+                key,
+                diff.added[key].clone().with(Color::Green)
+            );
         }
 
         let mut modified_keys: Vec<_> = diff.modified.keys().collect();
@@ -270,6 +424,22 @@ impl StorageDiff {
     pub fn is_empty(&self) -> bool {
         self.added.is_empty() && self.modified.is_empty() && self.deleted.is_empty()
     }
+}
+
+/// Statistics for a single storage access key
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AccessStats {
+    pub reads: usize,
+    pub writes: usize,
+}
+
+/// Report containing an analysis of storage access patterns
+#[derive(Debug, Clone)]
+pub struct AccessPatternReport {
+    pub stats: HashMap<String, AccessStats>,
+    pub hot_read_keys: Vec<String>,
+    pub write_heavy_keys: Vec<String>,
+    pub read_never_written: Vec<String>,
 }
 
 impl Default for StorageInspector {
@@ -441,7 +611,10 @@ mod tests {
 
         let diff = StorageInspector::compute_diff(&before, &after);
         assert!(diff.added.is_empty());
-        assert_eq!(diff.modified.get("key1"), Some(&("val_old".to_string(), "val_new".to_string())));
+        assert_eq!(
+            diff.modified.get("key1"),
+            Some(&("val_old".to_string(), "val_new".to_string()))
+        );
         assert!(diff.deleted.is_empty());
     }
 
@@ -475,6 +648,123 @@ mod tests {
         assert_eq!(diff.deleted.len(), 1);
         assert!(diff.added.contains_key("added"));
         assert!(diff.modified.contains_key("modified"));
-        assert!(diff.deleted.contains("deleted"));
+        assert!(diff.deleted.contains(&"deleted".to_string()));
+    }
+
+    // ── StorageState import/export tests ─────────────────────────────
+
+    #[test]
+    fn test_storage_export_import() {
+        use tempfile::NamedTempFile;
+
+        let mut entries = HashMap::new();
+        entries.insert("key1".to_string(), "value1".to_string());
+        entries.insert("key2".to_string(), "value2".to_string());
+
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path();
+
+        StorageState::export_to_file(&entries, path).unwrap();
+        let imported = StorageState::import_from_file(path).unwrap();
+
+        assert_eq!(imported.len(), 2);
+        assert_eq!(imported.get("key1"), Some(&"value1".to_string()));
+        assert_eq!(imported.get("key2"), Some(&"value2".to_string()));
+    }
+
+    #[test]
+    fn test_storage_export_empty() {
+        use tempfile::NamedTempFile;
+
+        let entries = HashMap::new();
+        let temp_file = NamedTempFile::new().unwrap();
+        let path = temp_file.path();
+
+        StorageState::export_to_file(&entries, path).unwrap();
+        let imported = StorageState::import_from_file(path).unwrap();
+
+        assert_eq!(imported.len(), 0);
+    }
+
+    #[test]
+    fn test_storage_import_invalid_json() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        write!(temp_file, "invalid json").unwrap();
+
+        let result = StorageState::import_from_file(temp_file.path());
+        assert!(result.is_err());
+    }
+
+    // ── Storage Access Pattern Analyzer tests ────────────────────────
+
+    #[test]
+    fn test_track_read_and_write() {
+        let mut inspector = StorageInspector::new();
+        inspector.track_read("key1");
+        inspector.track_read("key1");
+        inspector.track_write("key1");
+        inspector.track_write("key2");
+
+        let report = inspector.analyze_access_patterns();
+        assert_eq!(report.stats.get("key1").unwrap().reads, 2);
+        assert_eq!(report.stats.get("key1").unwrap().writes, 1);
+        assert_eq!(report.stats.get("key2").unwrap().reads, 0);
+        assert_eq!(report.stats.get("key2").unwrap().writes, 1);
+
+        // testing via set method
+        inspector.set("key3", "val3");
+        let report = inspector.analyze_access_patterns();
+        assert_eq!(report.stats.get("key3").unwrap().writes, 1);
+    }
+
+    #[test]
+    fn test_analyze_hot_keys_and_suggestions() {
+        let mut inspector = StorageInspector::new();
+
+        // Hot read key
+        for _ in 0..6 {
+            inspector.track_read("hot_key");
+        }
+
+        // Write heavy key
+        inspector.track_write("write_heavy");
+        inspector.track_write("write_heavy");
+        inspector.track_read("write_heavy");
+
+        // Read but never written
+        inspector.track_read("read_only");
+        inspector.track_read("read_only");
+
+        let report = inspector.analyze_access_patterns();
+
+        assert!(report.hot_read_keys.contains(&"hot_key".to_string()));
+        assert!(!report.hot_read_keys.contains(&"read_only".to_string()));
+
+        assert!(report.write_heavy_keys.contains(&"write_heavy".to_string()));
+        assert!(!report.write_heavy_keys.contains(&"hot_key".to_string()));
+
+        assert!(report.read_never_written.contains(&"read_only".to_string()));
+        // hot_key had 0 writes so it should actually be in read_never_written too
+        assert!(report.read_never_written.contains(&"hot_key".to_string()));
+    }
+
+    #[test]
+    fn test_display_access_report() {
+        // Just verify it runs without panicking with sorted items
+        let mut inspector = StorageInspector::new();
+
+        for _ in 0..10 {
+            inspector.track_read("config:global");
+        }
+        for _ in 0..3 {
+            inspector.track_write("user:alice:balance");
+        }
+        inspector.track_read("user:alice:balance");
+        inspector.track_read("user:bob:balance");
+
+        inspector.display_access_report();
     }
 }

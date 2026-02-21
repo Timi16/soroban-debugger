@@ -38,7 +38,7 @@ pub enum ArgumentParseError {
     #[error("Invalid argument: {0}")]
     InvalidArgument(String),
 
-    #[error("Unsupported type: {0}. Supported types: u32, i32, u64, i64, u128, i128, bool, string, symbol")]
+    #[error("Unsupported type: {0}. Supported types: u32, i32, u64, i64, u128, i128, bool, string, symbol, option, tuple")]
     UnsupportedType(String),
 
     #[error("Failed to convert value: {0}")]
@@ -153,7 +153,7 @@ impl ArgumentParser {
     /// Check if a JSON value is a type annotation object `{"type": "...", "value": ...}`
     fn is_typed_annotation(&self, value: &Value) -> bool {
         if let Value::Object(obj) = value {
-            obj.len() == 2
+            (obj.len() == 2 || (obj.len() == 3 && obj.contains_key("arity")))
                 && obj.contains_key("type")
                 && obj.contains_key("value")
                 && obj["type"].is_string()
@@ -184,6 +184,8 @@ impl ArgumentParser {
             "bool" => self.convert_bool(val),
             "string" => self.convert_string(val),
             "symbol" => self.convert_symbol(val),
+            "option" => self.convert_option(val),
+            "tuple" => self.convert_tuple(val, obj),
             other => Err(ArgumentParseError::UnsupportedType(other.to_string())),
         }
     }
@@ -334,14 +336,63 @@ impl ArgumentParser {
         })
     }
 
+    /// Convert a JSON value to an Option Val (None if null, Some(T) otherwise)
+    fn convert_option(&self, value: &Value) -> Result<Val, ArgumentParseError> {
+        if value.is_null() {
+            debug!("Converting option: null -> None (void)");
+            Val::try_from_val(&self.env, &()).map_err(|e| {
+                ArgumentParseError::ConversionError(format!(
+                    "Failed to convert void to Val: {:?}",
+                    e
+                ))
+            })
+        } else {
+            debug!("Converting option: {} -> Some", value);
+            self.json_to_soroban_val(value)
+        }
+    }
+
+    /// Convert a JSON array to a Soroban tuple (fixed length array)
+    fn convert_tuple(
+        &self,
+        value: &Value,
+        obj: &serde_json::Map<String, Value>,
+    ) -> Result<Val, ArgumentParseError> {
+        let arr = value
+            .as_array()
+            .ok_or_else(|| ArgumentParseError::TypeMismatch {
+                expected: "array for tuple".to_string(),
+                actual: format!("{}", value),
+            })?;
+
+        if let Some(arity) = obj.get("arity") {
+            let expected_arity = arity.as_u64().ok_or_else(|| {
+                ArgumentParseError::InvalidArgument("Arity must be a number".to_string())
+            })?;
+
+            if arr.len() as u64 != expected_arity {
+                return Err(ArgumentParseError::InvalidArgument(format!(
+                    "Tuple arity mismatch: expected {}, got {}",
+                    expected_arity,
+                    arr.len()
+                )));
+            }
+        }
+
+        self.array_to_soroban_vec(arr)
+    }
+
     /// Convert a JSON value to a Soroban Val (bare values without type annotation)
     fn json_to_soroban_val(&self, json_value: &Value) -> Result<Val, ArgumentParseError> {
         match json_value {
             Value::Null => {
-                debug!("Converting null to empty map");
-                // Return empty map as placeholder for null
-                let empty_map: Map<Symbol, Val> = Map::new(&self.env);
-                Ok(empty_map.into())
+                debug!("Converting null to void (Option::None)");
+                Val::try_from_val(&self.env, &()).map_err(|e| {
+                    ArgumentParseError::ConversionError(format!(
+                        "Failed to convert void to Val: {:?}",
+                        e
+                    ))
+                })
             }
             Value::Bool(b) => {
                 debug!("Converting bool: {}", b);
@@ -904,5 +955,48 @@ mod tests {
         assert!(result.is_ok());
         let vals = result.unwrap();
         assert_eq!(vals.len(), 1); // Treated as a Map
+    }
+
+    #[test]
+    fn test_typed_option_none() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "option", "value": null}]"#);
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert!(vals[0].is_void());
+    }
+
+    #[test]
+    fn test_typed_option_some() {
+        let parser = create_parser();
+        let result = parser.parse_args_string(r#"[{"type": "option", "value": 42}]"#);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_typed_tuple() {
+        let parser = create_parser();
+        let result =
+            parser.parse_args_string(r#"[{"type": "tuple", "value": [1, "hello"], "arity": 2}]"#);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_typed_tuple_wrong_arity() {
+        let parser = create_parser();
+        let result =
+            parser.parse_args_string(r#"[{"type": "tuple", "value": [1, 2, 3], "arity": 2}]"#);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("arity mismatch"));
+    }
+
+    #[test]
+    fn test_bare_null_is_void() {
+        let parser = create_parser();
+        let result = parser.parse_args_string("[null]");
+        assert!(result.is_ok());
+        let vals = result.unwrap();
+        assert!(vals[0].is_void());
     }
 }

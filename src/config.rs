@@ -1,7 +1,7 @@
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use anyhow::{Context, Result};
 use tracing::warn;
 
 /// Default configuration file name
@@ -39,7 +39,7 @@ impl Config {
     /// Load configuration from a file in the project root
     pub fn load() -> Result<Self> {
         let config_path = Path::new(DEFAULT_CONFIG_FILE);
-        
+
         if !config_path.exists() {
             return Ok(Config::default());
         }

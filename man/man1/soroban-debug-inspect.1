@@ -1,0 +1,22 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH soroban-debug-inspect 1  "soroban-debug-inspect " 
+.SH NAME
+soroban\-debug\-inspect \- Inspect contract information without executing
+.SH SYNOPSIS
+\fBsoroban\-debug\-inspect\fR <\fB\-c\fR|\fB\-\-contract\fR> [\fB\-\-functions\fR] [\fB\-\-metadata\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Inspect contract information without executing
+.SH OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-contract\fR \fI<CONTRACT>\fR
+Path to the contract WASM file
+.TP
+\fB\-\-functions\fR
+Show exported functions
+.TP
+\fB\-\-metadata\fR
+Show contract metadata
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

@@ -1,0 +1,8 @@
+{
+  "entries": {
+    "balance:alice": "1000",
+    "balance:bob": "500",
+    "total_supply": "1500",
+    "admin": "alice"
+  }
+}

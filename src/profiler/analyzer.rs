@@ -1,3 +1,4 @@
+use crate::profiler::session::ProfileSession;
 use crate::runtime::executor::ContractExecutor;
 use crate::Result;
 use std::collections::HashMap;
@@ -26,6 +27,7 @@ pub struct FunctionProfile {
     pub name: String,
     pub total_cpu: u64,
     pub total_memory: u64,
+    pub wall_time_ms: u128,
     pub operations: Vec<OperationCost>,
     pub storage_accesses: HashMap<String, StorageAccess>,
 }
@@ -90,26 +92,64 @@ impl GasOptimizer {
         args: Option<&str>,
     ) -> Result<FunctionProfile> {
         let host = self.executor.host();
-        let budget_start = crate::inspector::budget::BudgetInspector::get_cpu_usage(host);
+        let session = ProfileSession::start(host);
 
         let operations = Vec::new();
         let storage_accesses: HashMap<String, StorageAccess> = HashMap::new();
 
-        self.executor.execute(function_name, args)?;
+        let exec_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.executor.execute(function_name, args)
+        }));
 
-        let budget_end = crate::inspector::budget::BudgetInspector::get_cpu_usage(host);
+        // Always finish the session so we still capture metrics up to failure.
+        let metrics = session.finish();
+        let total_cpu = metrics.cpu_instructions;
+        let total_memory = metrics.memory_bytes;
+        let wall_time_ms = metrics.wall_time.as_millis();
 
-        let total_cpu = budget_end
-            .cpu_instructions
-            .saturating_sub(budget_start.cpu_instructions);
-        let total_memory = budget_end
-            .memory_bytes
-            .saturating_sub(budget_start.memory_bytes);
+        match exec_result {
+            Ok(Ok(_)) => {
+                // success, continue
+            }
+            Ok(Err(e)) => {
+                // contract returned an error (non-panic)
+                let profile = FunctionProfile {
+                    name: function_name.to_string(),
+                    total_cpu,
+                    total_memory,
+                    wall_time_ms,
+                    operations,
+                    storage_accesses,
+                };
+                self.function_profiles
+                    .insert(function_name.to_string(), profile.clone());
+                return Err(e);
+            }
+            Err(_) => {
+                // panic happened (e.g. budget exceeded escalated to panic)
+                let profile = FunctionProfile {
+                    name: function_name.to_string(),
+                    total_cpu,
+                    total_memory,
+                    wall_time_ms,
+                    operations,
+                    storage_accesses,
+                };
+                self.function_profiles
+                    .insert(function_name.to_string(), profile.clone());
+
+                // Return a normal error instead of crashing the whole CLI
+                return Err(anyhow::anyhow!(
+            "Contract execution panicked (likely budget exceeded). Try smaller inputs or optimize allocations."
+        ));
+            }
+        }
 
         let profile = FunctionProfile {
             name: function_name.to_string(),
             total_cpu,
             total_memory,
+            wall_time_ms,
             operations,
             storage_accesses,
         };
@@ -170,7 +210,7 @@ impl GasOptimizer {
     ) -> Vec<OptimizationSuggestion> {
         let mut suggestions = Vec::new();
 
-        if function.total_cpu > 1000000 {
+        if function.total_cpu > 1_000_000 {
             suggestions.push(OptimizationSuggestion {
                 category: "Expensive Operations".to_string(),
                 title: format!("High CPU usage in function '{}'", function.name),
@@ -181,9 +221,9 @@ impl GasOptimizer {
                 estimated_cpu_savings: function.total_cpu / 10,
                 estimated_memory_savings: 0,
                 location: function.name.clone(),
-                priority: if function.total_cpu > 5000000 {
+                priority: if function.total_cpu > 5_000_000 {
                     Priority::Critical
-                } else if function.total_cpu > 2000000 {
+                } else if function.total_cpu > 2_000_000 {
                     Priority::High
                 } else {
                     Priority::Medium
@@ -191,7 +231,7 @@ impl GasOptimizer {
             });
         }
 
-        if function.total_memory > 1000000 {
+        if function.total_memory > 1_000_000 {
             suggestions.push(OptimizationSuggestion {
                 category: "Memory Usage".to_string(),
                 title: format!("High memory usage in function '{}'", function.name),
@@ -202,9 +242,9 @@ impl GasOptimizer {
                 estimated_cpu_savings: 0,
                 estimated_memory_savings: function.total_memory / 5,
                 location: function.name.clone(),
-                priority: if function.total_memory > 5000000 {
+                priority: if function.total_memory > 5_000_000 {
                     Priority::Critical
-                } else if function.total_memory > 2000000 {
+                } else if function.total_memory > 2_000_000 {
                     Priority::High
                 } else {
                     Priority::Medium
@@ -232,7 +272,14 @@ impl GasOptimizer {
                     ),
                     estimated_cpu_savings: potential_savings,
                     estimated_memory_savings: 0,
-                    location: format!("{}:{}", function.name, access.locations.first().unwrap_or(&"unknown".to_string())),
+                    location: format!(
+                        "{}:{}",
+                        function.name,
+                        access
+                            .locations
+                            .first()
+                            .unwrap_or(&"unknown".to_string())
+                    ),
                     priority: if access.access_count > 5 {
                         Priority::High
                     } else if access.access_count > 3 {
@@ -250,7 +297,7 @@ impl GasOptimizer {
     fn analyze_type_alternatives(&self, function: &FunctionProfile) -> Vec<OptimizationSuggestion> {
         let mut suggestions = Vec::new();
 
-        if function.total_memory > 500000 {
+        if function.total_memory > 500_000 {
             suggestions.push(OptimizationSuggestion {
                 category: "Type Optimization".to_string(),
                 title: format!("Consider lighter-weight types in function '{}'", function.name),
@@ -298,6 +345,7 @@ impl GasOptimizer {
             writeln!(output).unwrap();
             writeln!(output, "- **CPU Instructions:** {}", function.total_cpu).unwrap();
             writeln!(output, "- **Memory Bytes:** {}", function.total_memory).unwrap();
+            writeln!(output, "- **Wall Time (ms):** {}", function.wall_time_ms).unwrap();
             writeln!(output).unwrap();
 
             if !function.operations.is_empty() {
@@ -361,5 +409,56 @@ impl GasOptimizer {
         }
 
         output
+    }
+} // ✅ end impl GasOptimizer (IMPORTANT)
+
+/// ✅ This MUST be outside `impl GasOptimizer`
+impl OptimizationReport {
+    pub fn format_hotspots(&self) -> String {
+        let mut out = String::new();
+
+        let mut by_cpu = self.functions.clone();
+        by_cpu.sort_by_key(|f| std::cmp::Reverse(f.total_cpu));
+
+        let mut by_mem = self.functions.clone();
+        by_mem.sort_by_key(|f| std::cmp::Reverse(f.total_memory));
+
+        let mut by_time = self.functions.clone();
+        by_time.sort_by_key(|f| std::cmp::Reverse(f.wall_time_ms));
+
+        let _ = writeln!(
+            &mut out,
+            "=== Profiling Report ===\nContract: {}\nTotal CPU: {}\nTotal Memory: {} bytes\n",
+            self.contract_path, self.total_cpu, self.total_memory
+        );
+
+        let _ = writeln!(&mut out, "--- Hotspots: CPU (top 5) ---");
+        for f in by_cpu.iter().take(5) {
+            let _ = writeln!(
+                &mut out,
+                "  {:<24} cpu={} mem={}B time={}ms",
+                f.name, f.total_cpu, f.total_memory, f.wall_time_ms
+            );
+        }
+
+        let _ = writeln!(&mut out, "\n--- Hotspots: Memory (top 5) ---");
+        for f in by_mem.iter().take(5) {
+            let _ = writeln!(
+                &mut out,
+                "  {:<24} mem={}B cpu={} time={}ms",
+                f.name, f.total_memory, f.total_cpu, f.wall_time_ms
+            );
+        }
+
+        let _ = writeln!(&mut out, "\n--- Hotspots: Wall time (top 5) ---");
+        for f in by_time.iter().take(5) {
+            let _ = writeln!(
+                &mut out,
+                "  {:<24} time={}ms cpu={} mem={}B",
+                f.name, f.wall_time_ms, f.total_cpu, f.total_memory
+            );
+        }
+
+        out
     }
 }

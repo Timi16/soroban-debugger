@@ -1,5 +1,5 @@
-pub mod trace;
 pub mod engine;
+pub mod trace;
 
-pub use trace::ExecutionTrace;
 pub use engine::{CompareEngine, ComparisonReport};
+pub use trace::ExecutionTrace;
