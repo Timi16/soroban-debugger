@@ -177,6 +177,7 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
     let initial_memory =
         crate::inspector::budget::BudgetInspector::get_cpu_usage(host).memory_bytes;
     let mut memory_tracker = crate::inspector::budget::MemoryTracker::new(initial_memory);
+    let mut instruction_counter = crate::inspector::instructions::InstructionCounter::new();
 
     let mut engine = DebuggerEngine::new(executor, args.breakpoint);
 
@@ -198,7 +199,9 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
 
     print_info("\n--- Execution Start ---\n");
     memory_tracker.record_snapshot(engine.executor().host(), "before_execution");
+    instruction_counter.start_function(&args.function, engine.executor().host());
     let result = engine.execute(&args.function, parsed_args.as_deref())?;
+    instruction_counter.end_function(engine.executor().host());
 
     if let Ok(diagnostic_events) = engine.executor().get_diagnostic_events() {
         let mut previous_memory = initial_memory;
@@ -224,6 +227,8 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
 
     let memory_summary = memory_tracker.finalize(engine.executor().host());
     memory_summary.display();
+
+    instruction_counter.display();
 
     let mut json_events = None;
     if args.show_events {
@@ -310,6 +315,11 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
 
         let memory_json = serde_json::to_value(&memory_summary).unwrap_or(serde_json::Value::Null);
         output["memory"] = memory_json;
+
+        let instruction_counts = instruction_counter.get_counts();
+        let instruction_json =
+            serde_json::to_value(instruction_counts).unwrap_or(serde_json::Value::Null);
+        output["instruction_counts"] = instruction_json;
 
         let content = serde_json::to_string_pretty(&output)?;
         println!("{}", content);
