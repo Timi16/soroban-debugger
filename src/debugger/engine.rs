@@ -17,6 +17,7 @@ pub struct DebuggerEngine {
     timeline: crate::debugger::timeline::TimelineManager,
     stepper: Stepper,
     instrumenter: Instrumenter,
+    source_map: crate::debugger::source_map::SourceMap,
     paused: bool,
     instruction_debug_enabled: bool,
 }
@@ -38,6 +39,7 @@ impl DebuggerEngine {
             timeline: crate::debugger::timeline::TimelineManager::new(1000),
             stepper: Stepper::new(),
             instrumenter: Instrumenter::new(),
+            source_map: crate::debugger::source_map::SourceMap::new(),
             paused: false,
             instruction_debug_enabled: false,
         }
@@ -54,6 +56,13 @@ impl DebuggerEngine {
         if let Ok(mut state) = self.state.lock() {
             state.set_instructions(instructions);
             state.enable_instruction_debug();
+        }
+
+        // Try to load source map
+        if let Err(e) = self.source_map.load(wasm_bytes) {
+            info!("No debug info found in WASM: {}", e);
+        } else {
+            info!("Source map loaded successfully");
         }
 
         self.instrumenter.enable();
@@ -260,6 +269,39 @@ impl DebuggerEngine {
         }
     }
 
+    /// Step by source line.
+    pub fn step_source(&mut self) -> Result<bool> {
+        if !self.instruction_debug_enabled {
+            return Err(anyhow::anyhow!("Instruction debugging not enabled"));
+        }
+
+        let start_loc = self.current_source_location();
+        let mut stepped = false;
+
+        // Step at least once
+        if self.step_into()? {
+            stepped = true;
+            
+            // If we have source info, keep stepping until line changes
+            if let Some(start) = start_loc {
+                for _ in 0..100 { // Max 100 instructions per source line to avoid infinite loop
+                    let current_loc = self.current_source_location();
+                    if let Some(current) = current_loc {
+                        if current.file != start.file || current.line != start.line {
+                            break;
+                        }
+                    }
+                    if !self.step_into()? {
+                        break;
+                    }
+                }
+            }
+        }
+
+        self.paused = stepped;
+        Ok(stepped)
+    }
+
     fn record_snapshot(&mut self) {
         let snapshot = {
             let state = self.state.lock().unwrap();
@@ -349,6 +391,21 @@ impl DebuggerEngine {
 
     pub fn state(&self) -> Arc<Mutex<DebugState>> {
         Arc::clone(&self.state)
+    }
+
+    /// Get current source location for the current instruction.
+    pub fn current_source_location(&self) -> Option<crate::debugger::source_map::SourceLocation> {
+        let state = self.state.lock().ok()?;
+        let instruction = state.current_instruction()?;
+        self.source_map.lookup(instruction.offset)
+    }
+
+    pub fn source_map(&self) -> &crate::debugger::source_map::SourceMap {
+        &self.source_map
+    }
+
+    pub fn source_map_mut(&mut self) -> &mut crate::debugger::source_map::SourceMap {
+        &mut self.source_map
     }
 
     pub fn current_instruction(&self) -> Option<Instruction> {

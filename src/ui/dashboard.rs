@@ -47,6 +47,7 @@ pub enum ActivePane {
     Storage,
     Budget,
     Timeline,
+    Source,
     Log,
 }
 
@@ -56,7 +57,8 @@ impl ActivePane {
             ActivePane::CallStack => ActivePane::Storage,
             ActivePane::Storage => ActivePane::Budget,
             ActivePane::Budget => ActivePane::Timeline,
-            ActivePane::Timeline => ActivePane::Log,
+            ActivePane::Timeline => ActivePane::Source,
+            ActivePane::Source => ActivePane::Log,
             ActivePane::Log => ActivePane::CallStack,
         }
     }
@@ -67,7 +69,8 @@ impl ActivePane {
             ActivePane::Storage => ActivePane::CallStack,
             ActivePane::Budget => ActivePane::Storage,
             ActivePane::Timeline => ActivePane::Budget,
-            ActivePane::Log => ActivePane::Timeline,
+            ActivePane::Source => ActivePane::Timeline,
+            ActivePane::Log => ActivePane::Source,
         }
     }
 
@@ -77,6 +80,7 @@ impl ActivePane {
             ActivePane::Storage => "Storage",
             ActivePane::Budget => "Budget Meters",
             ActivePane::Timeline => "Timeline",
+            ActivePane::Source => "Source Code",
             ActivePane::Log => "Execution Log",
         }
     }
@@ -108,6 +112,10 @@ pub struct DashboardApp {
 
     // Timeline pane
     timeline_state: ListState,
+
+    // Source pane
+    source_scroll: usize,
+    source_scroll_state: ScrollbarState,
 
     // Misc
     last_refresh: Instant,
@@ -175,6 +183,8 @@ impl DashboardApp {
             log_scroll: 0,
             log_scroll_state,
             timeline_state: ListState::default(),
+            source_scroll: 0,
+            source_scroll_state: ScrollbarState::default(),
             last_refresh: Instant::now(),
             step_count: 0,
             function_name,
@@ -300,6 +310,27 @@ impl DashboardApp {
         self.refresh_state();
     }
 
+    // ── Step Source action ───────────────────────────────────────────────────
+    fn do_step_source(&mut self) {
+        match self.engine.step_source() {
+            Ok(stepped) => {
+                if stepped {
+                    self.push_log(LogLevel::Step, "Step Source completed".to_string());
+                    // Auto-scroll to current line
+                    if let Some(loc) = self.engine.current_source_location() {
+                        self.source_scroll = loc.line.saturating_sub(10) as usize;
+                    }
+                } else {
+                    self.push_log(LogLevel::Warn, "At end of execution".to_string());
+                }
+            }
+            Err(e) => {
+                self.push_log(LogLevel::Error, format!("Step Source failed: {}", e));
+            }
+        }
+        self.refresh_state();
+    }
+
     // ── Step Back action ─────────────────────────────────────────────────────
     fn do_step_back(&mut self) {
         match self.engine.step_back() {
@@ -378,6 +409,9 @@ impl DashboardApp {
                 let sel = self.timeline_state.selected().unwrap_or(0);
                 self.timeline_state.select(Some((sel + 1).min(len - 1)));
             }
+            ActivePane::Source => {
+                self.source_scroll = self.source_scroll.saturating_add(1);
+            }
         }
     }
 
@@ -403,6 +437,9 @@ impl DashboardApp {
                 if len == 0 { return; }
                 let sel = self.timeline_state.selected().unwrap_or(0);
                 self.timeline_state.select(Some(sel.saturating_sub(1)));
+            }
+            ActivePane::Source => {
+                self.source_scroll = self.source_scroll.saturating_sub(1);
             }
         }
     }
@@ -478,7 +515,8 @@ fn run_app<B: ratatui::backend::Backend>(
                     KeyCode::Char('2') => app.active_pane = ActivePane::Storage,
                     KeyCode::Char('3') => app.active_pane = ActivePane::Budget,
                     KeyCode::Char('4') => app.active_pane = ActivePane::Timeline,
-                    KeyCode::Char('5') => app.active_pane = ActivePane::Log,
+                    KeyCode::Char('5') => app.active_pane = ActivePane::Source,
+                    KeyCode::Char('6') => app.active_pane = ActivePane::Log,
 
                     // ── Scroll ────────────────────────────────────
                     KeyCode::Down | KeyCode::Char('j') => {
@@ -491,6 +529,9 @@ fn run_app<B: ratatui::backend::Backend>(
                     // ── Debugger actions ──────────────────────────
                     KeyCode::Char('s') | KeyCode::Char('S') => {
                         app.do_step();
+                    }
+                    KeyCode::Char('v') | KeyCode::Char('V') => {
+                        app.do_step_source();
                     }
                     KeyCode::Char('c') => {
                         app.do_continue();
@@ -617,14 +658,19 @@ fn render_body(f: &mut Frame, app: &mut DashboardApp, area: Rect) {
 
     let right_column = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(45), Constraint::Percentage(55)])
+        .constraints([
+            Constraint::Percentage(20),
+            Constraint::Percentage(60),
+            Constraint::Percentage(20),
+        ])
         .split(columns[1]);
 
     render_call_stack(f, app, left_column[0]);
     render_budget(f, app, left_column[1]);
     render_timeline(f, app, left_column[2]);
     render_storage(f, app, right_column[0]);
-    render_log(f, app, right_column[1]);
+    render_source(f, app, right_column[1]);
+    render_log(f, app, right_column[2]);
 }
 
 // ─── Call Stack pane ──────────────────────────────────────────────────────
@@ -953,6 +999,74 @@ fn render_timeline(f: &mut Frame, app: &mut DashboardApp, area: Rect) {
     f.render_stateful_widget(list, inner, &mut app.timeline_state);
 }
 
+// ─── Source pane ───────────────────────────────────────────────────────────
+fn render_source(f: &mut Frame, app: &mut DashboardApp, area: Rect) {
+    let is_active = app.active_pane == ActivePane::Source;
+    let loc = app.engine.current_source_location();
+
+    let title = if let Some(l) = &loc {
+        format!("  Source: {} ", shorten_path(&l.file))
+    } else {
+        "  Source (no debug info) ".to_string()
+    };
+
+    let block = pane_block(&title, "5", is_active);
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    if let Some(l) = loc {
+        let content = app.engine.source_map_mut().get_source_content(&l.file);
+        if let Some(src) = content {
+            let lines: Vec<Line> = src
+                .lines()
+                .enumerate()
+                .skip(app.source_scroll)
+                .take(inner.height as usize)
+                .map(|(i, line)| {
+                    let line_num = i + 1;
+                    let is_current = line_num == l.line as usize;
+                    
+                    let mut spans = vec![
+                        Span::styled(
+                            format!("{:>4} │ ", line_num),
+                            Style::default().fg(COLOR_TEXT_DIM),
+                        ),
+                        Span::raw(line),
+                    ];
+
+                    if is_current {
+                        Line::from(spans).style(
+                            Style::default()
+                                .bg(Color::Rgb(40, 40, 60))
+                                .add_modifier(Modifier::BOLD),
+                        )
+                    } else {
+                        Line::from(spans)
+                    }
+                })
+                .collect();
+
+            let paragraph = Paragraph::new(lines)
+                .style(Style::default().bg(COLOR_SURFACE));
+            f.render_widget(paragraph, inner);
+        } else {
+            let msg = Paragraph::new(format!("  Could not load source file: {:?}", l.file))
+                .style(Style::default().fg(COLOR_RED));
+            f.render_widget(msg, inner);
+        }
+    } else {
+        let msg = Paragraph::new("  (debug info missing or not enabled)")
+            .style(Style::default().fg(COLOR_TEXT_DIM));
+        f.render_widget(msg, inner);
+    }
+}
+
+fn shorten_path(path: &std::path::Path) -> String {
+    path.file_name()
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.to_string_lossy().to_string())
+}
+
 fn shorten_func(name: &str) -> String {
     if name.len() > 15 {
         format!("{}…", &name[..14])
@@ -1093,7 +1207,7 @@ fn render_status_bar(f: &mut Frame, app: &DashboardApp, area: Rect) {
             Style::default().fg(msg_color).bg(COLOR_SURFACE),
         ),
         Span::styled(
-            " │ s=step  b=back  c=cont  l=cont-back  Tab=pane  q=quit ",
+            " │ s=step  v=src-step  b=back  c=cont  l=cont-back  Tab=pane  q=quit ",
             Style::default().fg(COLOR_TEXT_DIM).bg(COLOR_SURFACE),
         ),
     ]);
@@ -1142,6 +1256,7 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
                 .add_modifier(Modifier::BOLD),
         )]),
         bind("s / S", "Step (one instruction)"),
+        bind("v / V", "Step SOURCE line"),
         bind("b / Backspace", "Step BACK in time"),
         bind("c", "Continue execution"),
         bind("l / L", "Continue BACKWARDS"),

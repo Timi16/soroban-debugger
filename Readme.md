@@ -7,6 +7,8 @@ A command-line debugger for Soroban smart contracts on the Stellar network. Debu
 ## Features
 
 - Step-through execution of Soroban contracts
+- **Source-Level Debugging**: Map WASM execution back to Rust source lines
+- **Time-Travel Debugging**: Step backward and navigate execution history
 - Set breakpoints at function boundaries
 - Inspect contract storage and state
 - Track resource usage (CPU and memory budget)
@@ -564,9 +566,10 @@ cargo clippy
 - Call stack visualization
 - Replay execution from trace
 
-### Phase 3
-- WASM instrumentation for precise breakpoints
-- Source map support
+### Phase 3 (Current)
+- Source map support for Rust debugging
+- Time-travel debugging (step back)
+- Visual execution timeline
 - Memory profiling
 - Performance analysis tools -->
 
