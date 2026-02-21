@@ -57,7 +57,6 @@ notify = "6.1"
 ctrlc = "3.4"
 sha2 = "0.10.9"
 
-colored = "2.0"
 is-terminal = "0.4"
 
 [dev-dependencies]
