@@ -4,6 +4,7 @@ use crate::cli::args::{
 };
 use crate::debugger::engine::DebuggerEngine;
 use crate::debugger::instruction_pointer::StepMode;
+use crate::history::{check_regression, HistoryManager, RunHistory};
 use crate::logging;
 use crate::repeat::RepeatRunner;
 use crate::runtime::executor::ContractExecutor;
@@ -13,6 +14,7 @@ use crate::ui::tui::DebuggerUI;
 use crate::Result;
 use anyhow::Context;
 use std::fs;
+use textplots::{Chart, Plot, Shape};
 
 fn print_info(message: impl AsRef<str>) {
     println!("{}", Formatter::info(message));
@@ -83,6 +85,9 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
     if let Some(storage) = initial_storage {
         executor.set_initial_storage(storage)?;
     }
+    if !args.mock.is_empty() {
+        executor.set_mock_specs(&args.mock)?;
+    }
 
     let mut engine = DebuggerEngine::new(executor, args.breakpoint);
 
@@ -107,6 +112,24 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
     print_success("\n--- Execution Complete ---\n");
     print_success(format!("Result: {:?}", result));
     logging::log_execution_complete(&result);
+    let mock_calls = engine.executor().get_mock_call_log();
+    if !args.mock.is_empty() {
+        display_mock_call_log(&mock_calls);
+    }
+
+    // Save budget info to history
+    let host = engine.executor().host();
+    let budget = crate::inspector::budget::BudgetInspector::get_cpu_usage(host);
+    if let Ok(manager) = HistoryManager::new() {
+        let record = RunHistory {
+            date: chrono::Utc::now().to_rfc3339(),
+            contract_hash: args.contract.to_string_lossy().to_string(),
+            function: args.function.clone(),
+            cpu_used: budget.cpu_instructions,
+            memory_used: budget.memory_bytes,
+        };
+        let _ = manager.append_record(record);
+    }
 
     let mut json_events = None;
     if args.show_events {
@@ -189,6 +212,22 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
         if let Some(auth_tree) = json_auth {
             output["auth"] = serde_json::to_value(auth_tree).unwrap_or(serde_json::Value::Null);
         }
+        if !mock_calls.is_empty() {
+            output["mock_calls"] = serde_json::Value::Array(
+                mock_calls
+                    .iter()
+                    .map(|entry| {
+                        serde_json::json!({
+                            "contract_id": entry.contract_id,
+                            "function": entry.function,
+                            "args_count": entry.args_count,
+                            "mocked": entry.mocked,
+                            "returned": entry.returned,
+                        })
+                    })
+                    .collect(),
+            );
+        }
 
         println!("{}", serde_json::to_string_pretty(&output)?);
     }
@@ -234,6 +273,9 @@ fn run_dry_run(args: &RunArgs) -> Result<()> {
     if let Some(storage) = initial_storage {
         executor.set_initial_storage(storage)?;
     }
+    if !args.mock.is_empty() {
+        executor.set_mock_specs(&args.mock)?;
+    }
 
     let storage_snapshot = executor.snapshot_storage()?;
 
@@ -243,6 +285,9 @@ fn run_dry_run(args: &RunArgs) -> Result<()> {
     let result = engine.execute(&args.function, parsed_args.as_deref())?;
     print_success("\n[DRY RUN] --- Execution Complete ---\n");
     print_success(format!("[DRY RUN] Result: {:?}", result));
+    if !args.mock.is_empty() {
+        display_mock_call_log(&engine.executor().get_mock_call_log());
+    }
 
     if args.show_events {
         print_info("\n[DRY RUN] --- Events ---");
@@ -781,4 +826,80 @@ fn parse_step_mode(step_mode: &str) -> StepMode {
         "block" => StepMode::StepBlock,
         _ => StepMode::StepInto,
     }
+}
+
+fn display_mock_call_log(entries: &[crate::runtime::mocking::MockCallLogEntry]) {
+    print_info("\n--- Mock Calls ---");
+    if entries.is_empty() {
+        print_warning("No cross-contract mock invocations captured.");
+        return;
+    }
+    for (i, entry) in entries.iter().enumerate() {
+        if entry.mocked {
+            print_info(format!(
+                "#{i} {}.{} args={} mocked return={}",
+                entry.contract_id,
+                entry.function,
+                entry.args_count,
+                entry.returned.as_deref().unwrap_or("<none>")
+            ));
+        } else {
+            print_warning(format!(
+                "#{i} {}.{} args={} unmocked",
+                entry.contract_id, entry.function, entry.args_count
+            ));
+        }
+    }
+}
+
+/// Show historical budget trend
+pub fn show_budget_trend(contract: Option<&str>, function: Option<&str>) -> crate::Result<()> {
+    let manager = HistoryManager::new()?;
+    let records = manager.filter_history(contract, function)?;
+
+    if records.is_empty() {
+        print_warning("No historical budget data found.");
+        return Ok(());
+    }
+
+    print_info(format!(
+        "Found {} historical execution records.",
+        records.len()
+    ));
+
+    let mut cpu_points = Vec::new();
+    let mut mem_points = Vec::new();
+
+    for (i, r) in records.iter().enumerate() {
+        cpu_points.push((i as f32, r.cpu_used as f32));
+        mem_points.push((i as f32, r.memory_used as f32));
+    }
+
+    println!("\n--- CPU Usage Trend ---");
+    Chart::new(100, 40, 0.0, (records.len() - 1).max(1) as f32)
+        .lineplot(&Shape::Lines(&cpu_points))
+        .display();
+
+    println!("\n--- Memory Usage Trend ---");
+    Chart::new(100, 40, 0.0, (records.len() - 1).max(1) as f32)
+        .lineplot(&Shape::Lines(&mem_points))
+        .display();
+
+    if let Some((cpu_reg, mem_reg)) = check_regression(&records) {
+        println!("");
+        if cpu_reg > 0.0 {
+            print_warning(format!(
+                "⚠️ ALERT: CPU usage regression detected! Increased by {:.2}% compared to the previous run.",
+                cpu_reg
+            ));
+        }
+        if mem_reg > 0.0 {
+            print_warning(format!(
+                "⚠️ ALERT: Memory usage regression detected! Increased by {:.2}% compared to the previous run.",
+                mem_reg
+            ));
+        }
+    }
+
+    Ok(())
 }
