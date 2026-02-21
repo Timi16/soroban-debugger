@@ -4,7 +4,7 @@
 .SH NAME
 soroban\-debug \- A debugger for Soroban smart contracts
 .SH SYNOPSIS
-\fBsoroban\-debug\fR [\fB\-q\fR|\fB\-\-quiet\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-no\-unicode\fR] [\fB\-\-no\-banner\fR] [\fB\-\-version\-verbose\fR] [\fB\-\-list\-functions\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] <\fIsubcommands\fR>
+\fBsoroban\-debug\fR [\fB\-q\fR|\fB\-\-quiet\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-budget\-trend\fR] [\fB\-\-trend\-contract\fR] [\fB\-\-trend\-function\fR] [\fB\-\-version\-verbose\fR] [\fB\-\-list\-functions\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
 .SH DESCRIPTION
 A debugger for Soroban smart contracts
 .SH OPTIONS
@@ -15,11 +15,14 @@ Suppress non\-essential output (errors and return value only)
 \fB\-v\fR, \fB\-\-verbose\fR
 Show verbose output including internal details
 .TP
-\fB\-\-no\-unicode\fR
-Use ASCII\-only output (no Unicode box\-drawing or symbols). Use with NO_COLOR for screen reader compatibility
+\fB\-\-budget\-trend\fR
+Show historical budget trend visualization
 .TP
-\fB\-\-no\-banner\fR
-Suppress ASCII banner on startup
+\fB\-\-trend\-contract\fR \fI<TREND_CONTRACT>\fR
+Filter budget trend by contract hash
+.TP
+\fB\-\-trend\-function\fR \fI<TREND_FUNCTION>\fR
+Filter budget trend by function name
 .TP
 \fB\-\-version\-verbose\fR
 Show detailed version information
@@ -40,6 +43,9 @@ Run a contract function with the debugger
 soroban\-debug\-interactive(1)
 Start an interactive debugging session
 .TP
+soroban\-debug\-tui(1)
+Launch the full\-screen TUI dashboard
+.TP
 soroban\-debug\-inspect(1)
 Inspect contract information without executing
 .TP
@@ -49,11 +55,17 @@ Generate shell completion scripts
 soroban\-debug\-optimize(1)
 Analyze contract and generate gas optimization suggestions
 .TP
+soroban\-debug\-profile(1)
+Profile a single function execution and print hotspots + suggestions
+.TP
 soroban\-debug\-upgrade\-check(1)
 Check compatibility between two contract versions
 .TP
 soroban\-debug\-compare(1)
 Compare two execution trace JSON files side\-by\-side
+.TP
+soroban\-debug\-symbolic(1)
+Run symbolic execution to explore contract input space
 .TP
 soroban\-debug\-help(1)
 Print this message or the help of the given subcommand(s)

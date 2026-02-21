@@ -370,7 +370,7 @@ impl ArgumentParser {
             })?;
 
         let element_type = obj.get("element_type").and_then(|v| v.as_str());
-        
+
         let mut soroban_vec = SorobanVec::<Val>::new(&self.env);
 
         for (i, item) in arr.iter().enumerate() {
@@ -379,15 +379,16 @@ impl ArgumentParser {
                 let mut typed_item = serde_json::Map::new();
                 typed_item.insert("type".to_string(), Value::String(et.to_string()));
                 typed_item.insert("value".to_string(), item.clone());
-                
+
                 // If it's nested vec, we might need to handle element_type for it too.
                 // For now, let's just pass the whole typed_item back to parse_typed_value.
-                self.parse_typed_value(&Value::Object(typed_item)).map_err(|e| {
-                    ArgumentParseError::ConversionError(format!(
-                        "Vector element {} does not match element_type '{}': {}",
-                        i, et, e
-                    ))
-                })?
+                self.parse_typed_value(&Value::Object(typed_item))
+                    .map_err(|e| {
+                        ArgumentParseError::ConversionError(format!(
+                            "Vector element {} does not match element_type '{}': {}",
+                            i, et, e
+                        ))
+                    })?
             } else {
                 self.json_to_soroban_val(item)?
             };
@@ -1145,7 +1146,11 @@ mod tests {
         let addr = "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADUI";
         let json = format!(r#"[{{ "type": "address", "value": "{}" }}]"#, addr);
         let result = parser.parse_args_string(&json);
-        assert!(result.is_ok(), "Failed to parse typed address: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to parse typed address: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1154,7 +1159,11 @@ mod tests {
         let addr = "GD3IYSAL6Z2A3A4A3A4A3A4A3A4A3A4A3A4A3A4A3A4A3A4A3A4A3A4A";
         let json = format!(r#"["{}"]"#, addr);
         let result = parser.parse_args_string(&json);
-        assert!(result.is_ok(), "Failed to detect bare address: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to detect bare address: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -1169,7 +1178,8 @@ mod tests {
     #[test]
     fn test_typed_vec_u32() {
         let parser = create_parser();
-        let result = parser.parse_args_string(r#"[{"type": "vec", "element_type": "u32", "value": [1, 2, 3]}]"#);
+        let result = parser
+            .parse_args_string(r#"[{"type": "vec", "element_type": "u32", "value": [1, 2, 3]}]"#);
         assert!(result.is_ok());
     }
 
@@ -1177,9 +1187,14 @@ mod tests {
     fn test_typed_vec_homogeneity_enforcement() {
         let parser = create_parser();
         // Item at index 2 is a string, but u32 is expected
-        let result = parser.parse_args_string(r#"[{"type": "vec", "element_type": "u32", "value": [1, 2, "three"]}]"#);
+        let result = parser.parse_args_string(
+            r#"[{"type": "vec", "element_type": "u32", "value": [1, 2, "three"]}]"#,
+        );
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("does not match element_type 'u32'"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("does not match element_type 'u32'"));
     }
 
     #[test]
@@ -1188,7 +1203,10 @@ mod tests {
         // Bare array with mixed types should fail
         let result = parser.parse_args_string(r#"[ [1, 2, "three"] ]"#);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("mixed array with string at index 2"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("mixed array with string at index 2"));
     }
 
     #[test]
@@ -1201,7 +1219,9 @@ mod tests {
     #[test]
     fn test_nested_vec_typed() {
         let parser = create_parser();
-        let result = parser.parse_args_string(r#"[ {"type": "vec", "element_type": "vec", "value": [[1, 2], [3, 4]]} ]"#);
+        let result = parser.parse_args_string(
+            r#"[ {"type": "vec", "element_type": "vec", "value": [[1, 2], [3, 4]]} ]"#,
+        );
         assert!(result.is_ok());
     }
 }

@@ -214,6 +214,14 @@ pub struct RunArgs {
     /// Expected SHA-256 hash of the WASM file
     #[arg(long)]
     pub expected_hash: Option<String>,
+
+    /// Show ledger entries accessed during execution
+    #[arg(long)]
+    pub show_ledger: bool,
+
+    /// TTL warning threshold in ledger sequence numbers (default: 1000)
+    #[arg(long, default_value = "1000")]
+    pub ttl_warning_threshold: u32,
 }
 
 impl RunArgs {

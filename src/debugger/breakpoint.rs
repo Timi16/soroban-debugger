@@ -51,24 +51,32 @@ impl BreakpointManager {
     /// Parse a condition string into a Condition object
     pub fn parse_condition(s: &str) -> crate::Result<Condition> {
         use crate::DebuggerError;
-        
+
         // storage[key] > value
         if s.starts_with("storage[") {
             let end_bracket = s.find(']').ok_or_else(|| {
-                DebuggerError::BreakpointError("Missing closed bracket ']' in storage condition".to_string())
+                DebuggerError::BreakpointError(
+                    "Missing closed bracket ']' in storage condition".to_string(),
+                )
             })?;
             let key = s[8..end_bracket].to_string();
-            let rem = s[end_bracket+1..].trim();
-            
+            let rem = s[end_bracket + 1..].trim();
+
             let (op, val_str) = self::split_op_value(rem).map_err(|e| {
                 DebuggerError::BreakpointError(format!("Invalid storage condition: {}", e))
             })?;
-            return Ok(Condition::Storage { key, operator: op, value: val_str });
+            return Ok(Condition::Storage {
+                key,
+                operator: op,
+                value: val_str,
+            });
         }
-        
+
         // name > value
         let (op, _) = self::find_operator(s).ok_or_else(|| {
-            DebuggerError::BreakpointError("No operator found (use ==, !=, >, <, >=, <=)".to_string())
+            DebuggerError::BreakpointError(
+                "No operator found (use ==, !=, >, <, >=, <=)".to_string(),
+            )
         })?;
         let op_pos = s.find(op).unwrap();
         let name = s[..op_pos].trim().to_string();
@@ -80,10 +88,18 @@ impl BreakpointManager {
             "<=" => Operator::Le,
             ">" => Operator::Gt,
             "<" => Operator::Lt,
-            _ => return Err(DebuggerError::BreakpointError(format!("Unsupported operator: {}", op)).into()),
+            _ => {
+                return Err(
+                    DebuggerError::BreakpointError(format!("Unsupported operator: {}", op)).into(),
+                )
+            }
         };
-        
-        Ok(Condition::Argument { name, operator, value: val_str })
+
+        Ok(Condition::Argument {
+            name,
+            operator,
+            value: val_str,
+        })
     }
 }
 
@@ -98,13 +114,21 @@ fn find_operator(s: &str) -> Option<(&'static str, usize)> {
 }
 
 fn split_op_value(s: &str) -> Result<(Operator, String), String> {
-    if s.starts_with("==") { Ok((Operator::Eq, s[2..].trim().to_string())) }
-    else if s.starts_with("!=") { Ok((Operator::Ne, s[2..].trim().to_string())) }
-    else if s.starts_with(">=") { Ok((Operator::Ge, s[2..].trim().to_string())) }
-    else if s.starts_with("<=") { Ok((Operator::Le, s[2..].trim().to_string())) }
-    else if s.starts_with(">") { Ok((Operator::Gt, s[1..].trim().to_string())) }
-    else if s.starts_with("<") { Ok((Operator::Lt, s[1..].trim().to_string())) }
-    else { Err(format!("Invalid operator in condition: {}", s)) }
+    if s.starts_with("==") {
+        Ok((Operator::Eq, s[2..].trim().to_string()))
+    } else if s.starts_with("!=") {
+        Ok((Operator::Ne, s[2..].trim().to_string()))
+    } else if s.starts_with(">=") {
+        Ok((Operator::Ge, s[2..].trim().to_string()))
+    } else if s.starts_with("<=") {
+        Ok((Operator::Le, s[2..].trim().to_string()))
+    } else if s.starts_with(">") {
+        Ok((Operator::Gt, s[1..].trim().to_string()))
+    } else if s.starts_with("<") {
+        Ok((Operator::Lt, s[1..].trim().to_string()))
+    } else {
+        Err(format!("Invalid operator in condition: {}", s))
+    }
 }
 
 impl Default for BreakpointManager {

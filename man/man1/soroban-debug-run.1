@@ -4,7 +4,7 @@
 .SH NAME
 run \- Run a contract function with the debugger
 .SH SYNOPSIS
-\fBrun\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-b\fR|\fB\-\-breakpoint\fR] [\fB\-\-condition\fR] [\fB\-\-network\-snapshot\fR] [\fB\-\-trace\-output\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-format\fR] [\fB\-\-show\-events\fR] [\fB\-\-show\-auth\fR] [\fB\-\-json\fR] [\fB\-\-filter\-topic\fR] [\fB\-\-repeat\fR] [\fB\-\-storage\-filter\fR] [\fB\-\-instruction\-debug\fR] [\fB\-\-step\-instructions\fR] [\fB\-\-step\-mode\fR] [\fB\-\-dry\-run\fR] [\fB\-\-export\-storage\fR] [\fB\-\-import\-storage\fR] [\fB\-\-batch\-args\fR] [\fB\-\-watch\fR] [\fB\-\-timeout\fR] [\fB\-\-alert\-on\-change\fR] [\fB\-\-expected\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBrun\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-b\fR|\fB\-\-breakpoint\fR] [\fB\-\-network\-snapshot\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-format\fR] [\fB\-\-show\-events\fR] [\fB\-\-show\-auth\fR] [\fB\-\-json\fR] [\fB\-\-filter\-topic\fR] [\fB\-\-repeat\fR] [\fB\-\-mock\fR] [\fB\-\-storage\-filter\fR] [\fB\-\-instruction\-debug\fR] [\fB\-\-step\-instructions\fR] [\fB\-\-step\-mode\fR] [\fB\-\-dry\-run\fR] [\fB\-\-export\-storage\fR] [\fB\-\-import\-storage\fR] [\fB\-\-batch\-args\fR] [\fB\-\-timeout\fR] [\fB\-\-alert\-on\-change\fR] [\fB\-\-expected\-hash\fR] [\fB\-\-show\-ledger\fR] [\fB\-\-ttl\-warning\-threshold\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Run a contract function with the debugger
 .SH OPTIONS
@@ -24,14 +24,8 @@ Initial storage state as JSON object
 \fB\-b\fR, \fB\-\-breakpoint\fR \fI<BREAKPOINT>\fR
 Set breakpoint at function name
 .TP
-\fB\-\-condition\fR \fI<CONDITION>\fR
-Condition for the last specified breakpoint (e.g., \*(Aqamount > 100\*(Aq)
-.TP
 \fB\-\-network\-snapshot\fR \fI<NETWORK_SNAPSHOT>\fR
 Network snapshot file to load before execution
-.TP
-\fB\-\-trace\-output\fR \fI<TRACE_OUTPUT>\fR
-Path to export the execution trace as JSON
 .TP
 \fB\-v\fR, \fB\-\-verbose\fR
 Enable verbose output
@@ -53,6 +47,9 @@ Filter events by topic
 .TP
 \fB\-\-repeat\fR \fI<REPEAT>\fR
 Execute the contract call N times for stress testing
+.TP
+\fB\-\-mock\fR \fI<CONTRACT_ID.function=return_value>\fR
+Mock cross\-contract return: CONTRACT_ID.function=return_value (repeatable)
 .TP
 \fB\-\-storage\-filter\fR \fI<PATTERN>\fR
 Filter storage output by key pattern (repeatable). Supports: prefix*       — match keys starting with prefix re:<regex>    — match keys by regex exact_key     — match key exactly
@@ -78,9 +75,6 @@ Import storage state from JSON file before execution
 \fB\-\-batch\-args\fR \fI<BATCH_ARGS>\fR
 Path to JSON file containing array of argument sets for batch execution
 .TP
-\fB\-\-watch\fR
-Watch the WASM file for changes and automatically re\-run
-.TP
 \fB\-\-timeout\fR \fI<TIMEOUT>\fR [default: 30]
 Execution timeout in seconds (default: 30)
 .TP
@@ -89,6 +83,12 @@ Trigger a prominent alert when a critical storage key is modified (repeatable)
 .TP
 \fB\-\-expected\-hash\fR \fI<EXPECTED_HASH>\fR
 Expected SHA\-256 hash of the WASM file
+.TP
+\fB\-\-show\-ledger\fR
+Show ledger entries accessed during execution
+.TP
+\fB\-\-ttl\-warning\-threshold\fR \fI<TTL_WARNING_THRESHOLD>\fR [default: 1000]
+TTL warning threshold in ledger sequence numbers (default: 1000)
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

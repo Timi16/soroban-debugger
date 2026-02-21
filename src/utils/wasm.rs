@@ -78,8 +78,7 @@ pub fn parse_cross_contract_calls(wasm_bytes: &[u8]) -> Result<Vec<CrossContract
                         let current_index = imported_func_count;
                         imported_func_count += 1;
                         if is_cross_contract_import(import.module, import.name) {
-                            cross_contract_imports
-                                .insert(current_index, import.name.to_string());
+                            cross_contract_imports.insert(current_index, import.name.to_string());
                         }
                     }
                 }
