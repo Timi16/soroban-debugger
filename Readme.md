@@ -64,6 +64,33 @@ soroban-debug run --contract token.wasm --function transfer --args '["Alice", "B
 soroban-debug run --contract token.wasm --function update --args '{"user":"Alice","balance":1000}'
 ```
 
+### Complex Argument Types
+
+The debugger supports passing complex nested structures like vectors and maps using JSON.
+
+#### Bare Values (Default Inference)
+- **Numbers**: Default to `i128`
+- **Strings**: Default to `Symbol` (if <= 32 chars and valid) or `String`
+- **Arrays**: Converted to `Vec<Val>`. Elements must be of the same JSON type (homogeneity check).
+- **Objects**: Converted to `Map<Symbol, Val>`.
+
+Example of nested arrays:
+```bash
+soroban-debug run --contract my_contract.wasm --function my_func --args '[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]'
+```
+
+#### Typed Annotations
+For explicit control over types, use the typed annotation format `{"type": "...", "value": ...}`:
+
+| Type     | Example                                  |
+|----------|------------------------------------------|
+| `u32`    | `{"type": "u32", "value": 42}`           |
+| `i128`   | `{"type": "i128", "value": -100}`        |
+| `symbol` | `{"type": "symbol", "value": "hello"}`   |
+| `vec`    | `{"type": "vec", "element_type": "u32", "value": [1, 2, 3]}` |
+
+Typed vectors allow enforcing a specific Soroban type for all elements.
+
 ### Interactive Mode
 
 Start an interactive debugging session:
