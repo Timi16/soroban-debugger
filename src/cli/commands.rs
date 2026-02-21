@@ -315,6 +315,48 @@ pub fn run(args: RunArgs, verbosity: Verbosity) -> Result<()> {
         json_auth = Some(auth_tree);
     }
 
+    let mut json_ledger = None;
+    if args.show_ledger {
+        print_info("\n--- Ledger Entries ---");
+        let mut ledger_inspector = crate::inspector::ledger::LedgerEntryInspector::new();
+        ledger_inspector.set_ttl_warning_threshold(args.ttl_warning_threshold);
+
+        // Extract ledger entries from storage snapshots
+        // Instance entries (from the after-snapshot, representing accessed state)
+        for (key, value) in &storage_after {
+            let storage_type = if key.starts_with("instance:") || key.starts_with("Instance") {
+                crate::inspector::ledger::StorageType::Instance
+            } else if key.starts_with("temp:") || key.starts_with("Temporary") {
+                crate::inspector::ledger::StorageType::Temporary
+            } else {
+                crate::inspector::ledger::StorageType::Persistent
+            };
+
+            let was_read = storage_before.contains_key(key);
+            let was_written = storage_after.get(key) != storage_before.get(key);
+
+            // Simulated TTL based on storage type defaults
+            let ttl = match storage_type {
+                crate::inspector::ledger::StorageType::Instance => 999_999,
+                crate::inspector::ledger::StorageType::Persistent => 120_960,
+                crate::inspector::ledger::StorageType::Temporary => 17_280,
+            };
+
+            ledger_inspector.add_entry(
+                key.clone(),
+                value.clone(),
+                storage_type,
+                ttl,
+                was_read || !was_written,
+                was_written,
+            );
+        }
+
+        ledger_inspector.display();
+        ledger_inspector.display_warnings();
+        json_ledger = Some(ledger_inspector);
+    }
+
     if args.json
         || args
             .format
@@ -360,6 +402,9 @@ pub fn run(args: RunArgs, verbosity: Verbosity) -> Result<()> {
                     })
                     .collect(),
             );
+        }
+        if let Some(ref ledger) = json_ledger {
+            output["ledger_entries"] = ledger.to_json();
         }
 
         println!("{}", serde_json::to_string_pretty(&output)?);
