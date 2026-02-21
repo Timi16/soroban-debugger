@@ -1,0 +1,37 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH soroban-debug 1  "soroban-debug 0.1.0" 
+.SH NAME
+soroban\-debug \- A debugger for Soroban smart contracts
+.SH SYNOPSIS
+\fBsoroban\-debug\fR [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] <\fIsubcommands\fR>
+.SH DESCRIPTION
+A debugger for Soroban smart contracts
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.SH SUBCOMMANDS
+.TP
+soroban\-debug\-run(1)
+Run a contract function with the debugger
+.TP
+soroban\-debug\-interactive(1)
+Start an interactive debugging session
+.TP
+soroban\-debug\-inspect(1)
+Inspect contract information without executing
+.TP
+soroban\-debug\-optimize(1)
+Analyze contract and generate gas optimization suggestions
+.TP
+soroban\-debug\-upgrade\-check(1)
+Check compatibility between two contract versions
+.TP
+soroban\-debug\-help(1)
+Print this message or the help of the given subcommand(s)
+.SH VERSION
+v0.1.0

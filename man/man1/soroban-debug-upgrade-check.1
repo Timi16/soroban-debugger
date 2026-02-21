@@ -1,0 +1,28 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH upgrade-check 1  "upgrade-check " 
+.SH NAME
+upgrade\-check \- Check compatibility between two contract versions
+.SH SYNOPSIS
+\fBupgrade\-check\fR <\fB\-o\fR|\fB\-\-old\fR> <\fB\-n\fR|\fB\-\-new\fR> [\fB\-f\fR|\fB\-\-function\fR] [\fB\-a\fR|\fB\-\-args\fR] [\fB\-\-output\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Check compatibility between two contract versions
+.SH OPTIONS
+.TP
+\fB\-o\fR, \fB\-\-old\fR \fI<OLD>\fR
+Path to the old contract WASM file
+.TP
+\fB\-n\fR, \fB\-\-new\fR \fI<NEW>\fR
+Path to the new contract WASM file
+.TP
+\fB\-f\fR, \fB\-\-function\fR \fI<FUNCTION>\fR
+Function name to test side\-by\-side (optional)
+.TP
+\fB\-a\fR, \fB\-\-args\fR \fI<ARGS>\fR
+Function arguments as JSON array for side\-by\-side test
+.TP
+\fB\-\-output\fR \fI<OUTPUT>\fR
+Output file for the compatibility report (default: stdout)
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

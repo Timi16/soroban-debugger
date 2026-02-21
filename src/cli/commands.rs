@@ -1,5 +1,6 @@
 use crate::cli::args::{
-    CompareArgs, InspectArgs, InteractiveArgs, OptimizeArgs, RunArgs, UpgradeCheckArgs, Verbosity,
+    CompareArgs, InspectArgs, InteractiveArgs, OptimizeArgs, ProfileArgs, RunArgs,
+    UpgradeCheckArgs, Verbosity,
 };
 use crate::debugger::engine::DebuggerEngine;
 use crate::debugger::instruction_pointer::StepMode;
@@ -25,8 +26,79 @@ fn print_warning(message: impl AsRef<str>) {
     println!("{}", Formatter::warning(message));
 }
 
+/// Execute batch mode with parallel execution
+fn run_batch(args: &RunArgs, batch_file: &std::path::Path) -> Result<()> {
+    print_info(format!("Loading contract: {:?}", args.contract));
+    logging::log_loading_contract(&args.contract.to_string_lossy());
+
+    let wasm_bytes = fs::read(&args.contract)
+        .with_context(|| format!("Failed to read WASM file: {:?}", args.contract))?;
+
+    print_success(format!(
+        "Contract loaded successfully ({} bytes)",
+        wasm_bytes.len()
+    ));
+    logging::log_contract_loaded(wasm_bytes.len());
+
+    print_info(format!("Loading batch file: {:?}", batch_file));
+    let batch_items = crate::batch::BatchExecutor::load_batch_file(batch_file)?;
+    print_success(format!("Loaded {} test cases", batch_items.len()));
+
+    if let Some(snapshot_path) = &args.network_snapshot {
+        print_info(format!("\nLoading network snapshot: {:?}", snapshot_path));
+        logging::log_loading_snapshot(&snapshot_path.to_string_lossy());
+        let loader = SnapshotLoader::from_file(snapshot_path)?;
+        let loaded_snapshot = loader.apply_to_environment()?;
+        logging::log_display(loaded_snapshot.format_summary(), logging::LogLevel::Info);
+    }
+
+    print_info(format!(
+        "\nExecuting {} test cases in parallel for function: {}",
+        batch_items.len(),
+        args.function
+    ));
+    logging::log_execution_start(&args.function, None);
+
+    let executor = crate::batch::BatchExecutor::new(wasm_bytes, args.function.clone());
+    let results = executor.execute_batch(batch_items)?;
+    let summary = crate::batch::BatchExecutor::summarize(&results);
+
+    crate::batch::BatchExecutor::display_results(&results, &summary);
+
+    if args.json
+        || args
+            .format
+            .as_deref()
+            .map(|f| f.eq_ignore_ascii_case("json"))
+            .unwrap_or(false)
+    {
+        let output = serde_json::json!({
+            "results": results,
+            "summary": summary,
+        });
+        println!("\n{}", serde_json::to_string_pretty(&output)?);
+    }
+
+    logging::log_execution_complete(&format!("{}/{} passed", summary.passed, summary.total));
+
+    if summary.failed > 0 || summary.errors > 0 {
+        anyhow::bail!(
+            "Batch execution completed with failures: {} failed, {} errors",
+            summary.failed,
+            summary.errors
+        );
+    }
+
+    Ok(())
+}
+
 /// Execute the run command.
 pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
+    // Handle batch execution mode
+    if let Some(batch_file) = &args.batch_args {
+        return run_batch(&args, batch_file);
+    }
+
     if args.dry_run {
         return run_dry_run(&args);
     }
@@ -476,6 +548,10 @@ pub fn optimize(args: OptimizeArgs, _verbosity: Verbosity) -> Result<()> {
         print_info(format!("  Analyzing function: {}", function_name));
         match optimizer.analyze_function(function_name, args.args.as_deref()) {
             Ok(profile) => {
+                println!(
+                    "    CPU: {} instructions, Memory: {} bytes, Time: {} ms",
+                    profile.total_cpu, profile.total_memory, profile.wall_time_ms
+                );
                 print_success(format!(
                     "    CPU: {} instructions, Memory: {} bytes",
                     profile.total_cpu, profile.total_memory
@@ -506,6 +582,62 @@ pub fn optimize(args: OptimizeArgs, _verbosity: Verbosity) -> Result<()> {
         logging::log_optimization_report(&output_path.to_string_lossy());
     } else {
         logging::log_display(&markdown, logging::LogLevel::Info);
+    }
+
+    Ok(())
+}
+
+/// ✅ Execute the profile command (hotspots + suggestions)
+pub fn profile(args: ProfileArgs) -> Result<()> {
+    println!("Profiling contract execution: {:?}", args.contract);
+
+    // Load WASM file
+    let wasm_bytes = fs::read(&args.contract)
+        .with_context(|| format!("Failed to read WASM file: {:?}", args.contract))?;
+
+    println!("Contract loaded successfully ({} bytes)", wasm_bytes.len());
+
+    // Parse args (optional)
+    let parsed_args = if let Some(args_json) = &args.args {
+        Some(parse_args(args_json)?)
+    } else {
+        None
+    };
+
+    // Create executor
+    let mut executor = ContractExecutor::new(wasm_bytes)?;
+
+    // Initial storage (optional)
+    if let Some(storage_json) = &args.storage {
+        let storage = parse_storage(storage_json)?;
+        executor.set_initial_storage(storage)?;
+    }
+
+    // Analyze exactly one function (this command focuses on execution hotspots)
+    let mut optimizer = crate::profiler::analyzer::GasOptimizer::new(executor);
+
+    println!("\nRunning function: {}", args.function);
+    if let Some(ref a) = parsed_args {
+        println!("Args: {}", a);
+    }
+
+    let _profile = optimizer.analyze_function(&args.function, parsed_args.as_deref())?;
+
+    let contract_path_str = args.contract.to_string_lossy().to_string();
+    let report = optimizer.generate_report(&contract_path_str);
+
+    // Hotspot summary first
+    println!("\n{}", report.format_hotspots());
+
+    // Then detailed suggestions (markdown format)
+    let markdown = optimizer.generate_markdown_report(&report);
+
+    if let Some(output_path) = &args.output {
+        fs::write(output_path, &markdown)
+            .with_context(|| format!("Failed to write report to: {:?}", output_path))?;
+        println!("\nProfile report written to: {:?}", output_path);
+    } else {
+        println!("\n{}", markdown);
     }
 
     Ok(())

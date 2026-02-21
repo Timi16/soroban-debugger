@@ -1,5 +1,6 @@
 use crate::utils::ArgumentParser;
 use crate::{DebuggerError, Result};
+
 use soroban_env_host::{DiagnosticLevel, Host};
 use soroban_sdk::{Address, Env, InvokeError, Symbol, Val, Vec as SorobanVec};
 use std::collections::HashMap;
@@ -40,6 +41,7 @@ impl ContractExecutor {
         info!("Executing function: {}", function);
 
         let func_symbol = Symbol::new(&self.env, function);
+
         let parsed_args = if let Some(args_json) = args {
             self.parse_args(args_json)?
         } else {
@@ -64,21 +66,29 @@ impl ContractExecutor {
             ))
             .into()),
             Err(Ok(inv_err)) => match inv_err {
-                InvokeError::Contract(code) => Err(DebuggerError::ExecutionError(format!(
-                    "Contract error code: {}",
-                    code
-                ))
-                .into()),
-                InvokeError::Abort => Err(DebuggerError::ExecutionError(
-                    "Contract execution aborted".to_string(),
-                )
-                .into()),
+                InvokeError::Contract(code) => {
+                    warn!("Contract returned error code: {}", code);
+                    Err(
+                        DebuggerError::ExecutionError(format!("Contract error code: {}", code))
+                            .into(),
+                    )
+                }
+                InvokeError::Abort => {
+                    warn!("Contract execution aborted");
+                    Err(
+                        DebuggerError::ExecutionError("Contract execution aborted".to_string())
+                            .into(),
+                    )
+                }
             },
-            Err(Err(inv_err)) => Err(DebuggerError::ExecutionError(format!(
-                "Invocation error conversion failed: {:?}",
-                inv_err
-            ))
-            .into()),
+            Err(Err(inv_err)) => {
+                warn!("Invocation error conversion failed: {:?}", inv_err);
+                Err(DebuggerError::ExecutionError(format!(
+                    "Invocation error conversion failed: {:?}",
+                    inv_err
+                ))
+                .into())
+            }
         }
     }
 

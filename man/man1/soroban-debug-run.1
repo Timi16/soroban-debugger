@@ -1,0 +1,40 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH run 1  "run " 
+.SH NAME
+run \- Run a contract function with the debugger
+.SH SYNOPSIS
+\fBrun\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-b\fR|\fB\-\-breakpoint\fR] [\fB\-\-network\-snapshot\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-show\-events\fR] [\fB\-\-filter\-topic\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Run a contract function with the debugger
+.SH OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-contract\fR \fI<CONTRACT>\fR
+Path to the contract WASM file
+.TP
+\fB\-f\fR, \fB\-\-function\fR \fI<FUNCTION>\fR
+Function name to execute
+.TP
+\fB\-a\fR, \fB\-\-args\fR \fI<ARGS>\fR
+Function arguments as JSON array (e.g., \*(Aq["arg1", "arg2"]\*(Aq)
+.TP
+\fB\-s\fR, \fB\-\-storage\fR \fI<STORAGE>\fR
+Initial storage state as JSON object
+.TP
+\fB\-b\fR, \fB\-\-breakpoint\fR \fI<BREAKPOINT>\fR
+Set breakpoint at function name
+.TP
+\fB\-\-network\-snapshot\fR \fI<NETWORK_SNAPSHOT>\fR
+Network snapshot file to load before execution
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Enable verbose output
+.TP
+\fB\-\-show\-events\fR
+Show contract events emitted during execution
+.TP
+\fB\-\-filter\-topic\fR \fI<FILTER_TOPIC>\fR
+Filter events by topic
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

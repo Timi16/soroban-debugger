@@ -53,23 +53,35 @@ fn main() -> Result<()> {
     let config = soroban_debugger::config::Config::load_or_default();
 
     let result = match cli.command {
-        Commands::Run(mut args) => {
+        Some(Commands::Run(mut args)) => {
             args.merge_config(&config);
             soroban_debugger::cli::commands::run(args, verbosity)
         }
-        Commands::Interactive(mut args) => {
+        Some(Commands::Interactive(mut args)) => {
             args.merge_config(&config);
             soroban_debugger::cli::commands::interactive(args, verbosity)
         }
-        Commands::Inspect(args) => soroban_debugger::cli::commands::inspect(args, verbosity),
-        Commands::Optimize(args) => soroban_debugger::cli::commands::optimize(args, verbosity),
-        Commands::UpgradeCheck(args) => {
+        Some(Commands::Inspect(args)) => soroban_debugger::cli::commands::inspect(args, verbosity),
+        Some(Commands::Optimize(args)) => {
+            soroban_debugger::cli::commands::optimize(args, verbosity)
+        }
+        Some(Commands::UpgradeCheck(args)) => {
             soroban_debugger::cli::commands::upgrade_check(args, verbosity)
         }
-        Commands::Compare(args) => soroban_debugger::cli::commands::compare(args),
-        Commands::Completions(args) => {
+        Some(Commands::Compare(args)) => soroban_debugger::cli::commands::compare(args),
+        Some(Commands::Completions(args)) => {
             let mut cmd = Cli::command();
             generate(args.shell, &mut cmd, "soroban-debug", &mut io::stdout());
+            Ok(())
+        }
+        Some(Commands::Profile(args)) => {
+            soroban_debugger::cli::commands::profile(args)?;
+            Ok(())
+        }
+        None => {
+            let mut cmd = Cli::command();
+            cmd.print_help()?;
+            println!();
             Ok(())
         }
     };

@@ -1,4 +1,5 @@
 pub mod analyzer;
+pub mod batch;
 pub mod cli;
 pub mod compare;
 pub mod config;
