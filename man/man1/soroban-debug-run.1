@@ -4,7 +4,7 @@
 .SH NAME
 soroban\-debug\-run \- Run a contract function with the debugger
 .SH SYNOPSIS
-\fBsoroban\-debug\-run\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-b\fR|\fB\-\-breakpoint\fR] [\fB\-\-network\-snapshot\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-format\fR] [\fB\-\-show\-events\fR] [\fB\-\-show\-auth\fR] [\fB\-\-json\fR] [\fB\-\-filter\-topic\fR] [\fB\-\-repeat\fR] [\fB\-\-mock\fR] [\fB\-\-storage\-filter\fR] [\fB\-\-instruction\-debug\fR] [\fB\-\-step\-instructions\fR] [\fB\-\-step\-mode\fR] [\fB\-\-dry\-run\fR] [\fB\-\-export\-storage\fR] [\fB\-\-import\-storage\fR] [\fB\-\-batch\-args\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBsoroban\-debug\-run\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-b\fR|\fB\-\-breakpoint\fR] [\fB\-\-network\-snapshot\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-format\fR] [\fB\-\-show\-events\fR] [\fB\-\-show\-auth\fR] [\fB\-\-json\fR] [\fB\-\-filter\-topic\fR] [\fB\-\-repeat\fR] [\fB\-\-mock\fR] [\fB\-\-storage\-filter\fR] [\fB\-\-instruction\-debug\fR] [\fB\-\-step\-instructions\fR] [\fB\-\-step\-mode\fR] [\fB\-\-dry\-run\fR] [\fB\-\-export\-storage\fR] [\fB\-\-import\-storage\fR] [\fB\-\-batch\-args\fR] [\fB\-\-timeout\fR] [\fB\-\-alert\-on\-change\fR] [\fB\-\-expected\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Run a contract function with the debugger
 .SH OPTIONS
@@ -74,6 +74,15 @@ Import storage state from JSON file before execution
 .TP
 \fB\-\-batch\-args\fR \fI<BATCH_ARGS>\fR
 Path to JSON file containing array of argument sets for batch execution
+.TP
+\fB\-\-timeout\fR \fI<TIMEOUT>\fR [default: 30]
+Execution timeout in seconds (default: 30)
+.TP
+\fB\-\-alert\-on\-change\fR \fI<KEY_PATTERN>\fR
+Trigger a prominent alert when a critical storage key is modified (repeatable)
+.TP
+\fB\-\-expected\-hash\fR \fI<EXPECTED_HASH>\fR
+Expected SHA\-256 hash of the WASM file
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

@@ -147,6 +147,17 @@ fn main() -> Result<()> {
             soroban_debugger::cli::commands::symbolic(args, verbosity)
         }
         None => {
+            if let Some(path) = cli.list_functions {
+                return soroban_debugger::cli::commands::inspect(
+                    soroban_debugger::cli::args::InspectArgs {
+                        contract: path,
+                        wasm: None,
+                        functions: true,
+                        metadata: false,
+                    },
+                    verbosity,
+                );
+            }
             if cli.budget_trend {
                 soroban_debugger::cli::commands::show_budget_trend(
                     cli.trend_contract.as_deref(),

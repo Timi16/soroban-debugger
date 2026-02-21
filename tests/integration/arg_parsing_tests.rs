@@ -141,11 +141,11 @@ fn test_parse_mixed_typed_and_bare() {
 #[test]
 fn test_error_unsupported_type() {
     let parser = create_parser();
-    let result = parser.parse_args_string(r#"[{"type": "bytes", "value": "abc"}]"#);
+    let result = parser.parse_args_string(r#"[{"type": "unknown_type", "value": "abc"}]"#);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(
-        err_msg.contains("Unsupported type") || err_msg.contains("bytes"),
+        err_msg.contains("Unsupported type") || err_msg.contains("unknown_type"),
         "Expected unsupported type error, got: {}",
         err_msg
     );

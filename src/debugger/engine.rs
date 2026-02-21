@@ -14,45 +14,28 @@ pub struct DebuggerEngine {
     executor: ContractExecutor,
     breakpoints: BreakpointManager,
     state: Arc<Mutex<DebugState>>,
-    timeline: crate::debugger::timeline::TimelineManager,
     stepper: Stepper,
     instrumenter: Instrumenter,
-    source_map: crate::debugger::source_map::SourceMap,
     paused: bool,
     instruction_debug_enabled: bool,
 }
 
 impl DebuggerEngine {
     /// Create a new debugger engine.
-    pub fn new(executor: ContractExecutor, initial_breakpoints: Vec<String>, conditions: Vec<String>) -> Self {
+    pub fn new(executor: ContractExecutor, initial_breakpoints: Vec<String>) -> Self {
         let mut breakpoints = BreakpointManager::new();
 
-        for (i, bp) in initial_breakpoints.iter().enumerate() {
-            let condition = conditions.get(i).and_then(|c| {
-                match BreakpointManager::parse_condition(c) {
-                    Ok(cond) => Some(cond),
-                    Err(e) => {
-                        warn!("Invalid condition for breakpoint {}: {}", bp, e);
-                        None
-                    }
-                }
-            });
-            breakpoints.add(bp, condition);
-            if let Some(ref c) = breakpoints.list().last().and_then(|b| b.condition.as_ref()) {
-                info!("Conditional breakpoint set at function: {} (if {})", bp, c);
-            } else {
-                info!("Breakpoint set at function: {}", bp);
-            }
+        for bp in initial_breakpoints {
+            breakpoints.add(&bp);
+            info!("Breakpoint set at function: {}", bp);
         }
 
         Self {
             executor,
             breakpoints,
             state: Arc::new(Mutex::new(DebugState::new())),
-            timeline: crate::debugger::timeline::TimelineManager::new(1000),
             stepper: Stepper::new(),
             instrumenter: Instrumenter::new(),
-            source_map: crate::debugger::source_map::SourceMap::new(),
             paused: false,
             instruction_debug_enabled: false,
         }
@@ -69,13 +52,6 @@ impl DebuggerEngine {
         if let Ok(mut state) = self.state.lock() {
             state.set_instructions(instructions);
             state.enable_instruction_debug();
-        }
-
-        // Try to load source map
-        if let Err(e) = self.source_map.load(wasm_bytes) {
-            info!("No debug info found in WASM: {}", e);
-        } else {
-            info!("Source map loaded successfully");
         }
 
         self.instrumenter.enable();
@@ -108,8 +84,7 @@ impl DebuggerEngine {
             state.call_stack_mut().push(function.to_string(), None);
         }
 
-        let initial_storage = self.executor.get_storage_snapshot().unwrap_or_default();
-        if self.breakpoints.should_break(function, &initial_storage, args) {
+        if self.breakpoints.should_break(function) {
             self.pause_at_function(function);
         }
 
@@ -181,11 +156,6 @@ impl DebuggerEngine {
         } else {
             false
         };
-
-        if stepped {
-            self.record_snapshot();
-        }
-
         self.paused = stepped;
         Ok(stepped)
     }
@@ -201,11 +171,6 @@ impl DebuggerEngine {
         } else {
             false
         };
-
-        if stepped {
-            self.record_snapshot();
-        }
-
         self.paused = stepped;
         Ok(stepped)
     }
@@ -221,11 +186,6 @@ impl DebuggerEngine {
         } else {
             false
         };
-
-        if stepped {
-            self.record_snapshot();
-        }
-
         self.paused = stepped;
         Ok(stepped)
     }
@@ -245,125 +205,19 @@ impl DebuggerEngine {
         Ok(stepped)
     }
 
-    /// Step backwards to previous instruction and restore state.
+    /// Step backwards to previous instruction.
     pub fn step_back(&mut self) -> Result<bool> {
-        if let Some(snapshot) = self.timeline.step_back() {
-            self.restore_snapshot(snapshot.clone())?;
-            self.paused = true;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
-    }
-
-    /// Continue execution backwards until next breakpoint or event.
-    pub fn continue_back(&mut self) -> Result<()> {
-        while let Some(snapshot) = self.timeline.step_back() {
-            self.restore_snapshot(snapshot.clone())?;
-            
-            // Check if we should pause at this point
-            // For now, pause at function changes or if we hit the beginning
-            let is_beginning = self.timeline.current_pos() == 0;
-            if is_beginning || self.breakpoints.should_break(&snapshot.function, &snapshot.storage, None) {
-                self.paused = true;
-                break;
-            }
-        }
-        Ok(())
-    }
-
-    /// Jump to a specific step in the execution history.
-    pub fn goto_step(&mut self, step: usize) -> Result<()> {
-        if let Some(snapshot) = self.timeline.goto(step) {
-            self.restore_snapshot(snapshot.clone())?;
-            self.paused = true;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Step {} not found in history", step))
-        }
-    }
-
-    /// Step by source line.
-    pub fn step_source(&mut self) -> Result<bool> {
         if !self.instruction_debug_enabled {
             return Err(anyhow::anyhow!("Instruction debugging not enabled"));
         }
 
-        let start_loc = self.current_source_location();
-        let mut stepped = false;
-
-        // Step at least once
-        if self.step_into()? {
-            stepped = true;
-            
-            // If we have source info, keep stepping until line changes
-            if let Some(start) = start_loc {
-                for _ in 0..100 { // Max 100 instructions per source line to avoid infinite loop
-                    let current_loc = self.current_source_location();
-                    if let Some(current) = current_loc {
-                        if current.file != start.file || current.line != start.line {
-                            break;
-                        }
-                    }
-                    if !self.step_into()? {
-                        break;
-                    }
-                }
-            }
-        }
-
+        let stepped = if let Ok(mut state) = self.state.lock() {
+            self.stepper.step_back(&mut state)
+        } else {
+            false
+        };
         self.paused = stepped;
         Ok(stepped)
-    }
-
-    fn record_snapshot(&mut self) {
-        let snapshot = {
-            let state = self.state.lock().unwrap();
-            let host = self.executor.host();
-            let budget = crate::inspector::BudgetInspector::get_cpu_usage(host);
-            let events = self.executor.get_events().unwrap_or_default();
-
-            crate::debugger::timeline::ExecutionSnapshot {
-                step: state.step_count(),
-                instruction_index: state.instruction_pointer().current_index(),
-                function: state.current_function().unwrap_or("unknown").to_string(),
-                call_stack: state.call_stack().get_stack().to_vec(),
-                storage: self.executor.get_storage_snapshot().unwrap_or_default(),
-                budget,
-                events_count: events.len(),
-                timestamp: std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_millis(),
-            }
-        };
-        
-        self.timeline.push(snapshot);
-    }
-
-    fn restore_snapshot(&mut self, snapshot: crate::debugger::timeline::ExecutionSnapshot) -> Result<()> {
-        // Restore engine state
-        if let Ok(mut state) = self.state.lock() {
-            state.advance_to_instruction(snapshot.instruction_index);
-            state.set_current_function(snapshot.function, None);
-            
-            let stack = state.call_stack_mut();
-            stack.clear();
-            for frame in snapshot.call_stack {
-                stack.push_frame(frame);
-            }
-        }
-
-        // Restore executor state (storage)
-        let storage_json = serde_json::to_string(&snapshot.storage)?;
-        self.executor.set_initial_storage(storage_json)?;
-
-        Ok(())
-    }
-
-    /// Get the execution timeline.
-    pub fn get_timeline(&self) -> &crate::debugger::timeline::TimelineManager {
-        &self.timeline
     }
 
     /// Start instruction stepping with given mode.
@@ -407,21 +261,6 @@ impl DebuggerEngine {
         Arc::clone(&self.state)
     }
 
-    /// Get current source location for the current instruction.
-    pub fn current_source_location(&self) -> Option<crate::debugger::source_map::SourceLocation> {
-        let state = self.state.lock().ok()?;
-        let instruction = state.current_instruction()?;
-        self.source_map.lookup(instruction.offset)
-    }
-
-    pub fn source_map(&self) -> &crate::debugger::source_map::SourceMap {
-        &self.source_map
-    }
-
-    pub fn source_map_mut(&mut self) -> &mut crate::debugger::source_map::SourceMap {
-        &mut self.source_map
-    }
-
     pub fn current_instruction(&self) -> Option<Instruction> {
         self.state
             .lock()
@@ -461,7 +300,6 @@ impl DebuggerEngine {
         if let Ok(mut state) = self.state.lock() {
             state.increment_step();
         }
-        self.record_snapshot();
         Ok(())
     }
 }

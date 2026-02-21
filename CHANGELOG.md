@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Watch mode (`--watch` flag) for automatic reload and re-execution when WASM file changes
+  - Debounced file system events (~500ms) to avoid repeated triggers
+  - Clean terminal output on each run
+  - Graceful Ctrl+C exit handling
+  - Errors don't terminate watch mode
+
 ### Deprecated
 
 - CLI flag `--wasm` and `--contract-path` are deprecated in favor of `--contract`

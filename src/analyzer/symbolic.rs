@@ -1,9 +1,9 @@
 use crate::runtime::executor::ContractExecutor;
 use crate::Result;
 use serde::Serialize;
+use std::collections::HashSet;
 use std::fmt::Write;
 use wasmparser::{Parser, Payload};
-use std::collections::HashSet;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PathResult {
@@ -31,7 +31,7 @@ impl SymbolicAnalyzer {
     pub fn analyze(&self, wasm: &[u8], function: &str) -> Result<SymbolicReport> {
         let arg_count = self.get_arg_count(wasm, function).unwrap_or(0);
         let combinations = self.generate_input_combinations(arg_count);
-        
+
         let mut report = SymbolicReport {
             function: function.to_string(),
             paths_explored: 0,
@@ -140,20 +140,20 @@ impl SymbolicAnalyzer {
     fn generate_input_combinations(&self, arg_count: usize) -> Vec<String> {
         // Values representing symbolic extremes
         let values = vec!["0", "1", "-1", "42", "2147483647", "-2147483648"];
-        
+
         let mut combinations = Vec::new();
         if arg_count == 0 {
             combinations.push("[]".to_string());
             return combinations;
-        } 
-        
+        }
+
         if arg_count == 1 {
             for v in &values {
                 combinations.push(format!("[{}]", v));
             }
             return combinations;
-        } 
-        
+        }
+
         if arg_count == 2 {
             for v1 in &values {
                 for v2 in &values {
@@ -174,12 +174,12 @@ impl SymbolicAnalyzer {
         writeln!(toml, "function = \"{}\"", report.function).unwrap();
         writeln!(toml, "paths_explored = {}", report.paths_explored).unwrap();
         writeln!(toml, "panics_found = {}\n", report.panics_found).unwrap();
-        
+
         for (i, path) in report.paths.iter().enumerate() {
             writeln!(toml, "[[scenario]]").unwrap();
             writeln!(toml, "id = {}", i).unwrap();
             writeln!(toml, "inputs = '{}'", path.inputs).unwrap();
-            
+
             if let Some(ref val) = path.return_value {
                 writeln!(toml, "expected_return = '{}'", val).unwrap();
             }
@@ -189,7 +189,7 @@ impl SymbolicAnalyzer {
             }
             writeln!(toml).unwrap();
         }
-        
+
         toml
     }
 }

@@ -1,0 +1,34 @@
+title:	Add Snapshot Import/Export for Storage State
+state:	OPEN
+author:	Timi16
+labels:	enhancement, inspector, Stellar Wave
+comments:	4
+assignees:	walterthesmart
+projects:	
+milestone:	
+number:	157
+--
+## Description
+Allow users to export the current contract storage state to a JSON file after execution, and import a previously saved snapshot to pre-seed storage before a debug session — making it easy to reproduce exact on-chain state locally.
+
+## Requirements
+- `--export-storage <file>` saves full storage state after execution
+- `--import-storage <file>` loads state into host before execution
+- JSON format that is human-readable and manually editable
+- Round-trip: export then import produces identical state
+
+## Suggested Execution
+1. Branch: `git checkout -b feature/storage-snapshot-io`
+2. Add `--export-storage` and `--import-storage` flags to `src/cli/args.rs`
+3. Implement serialization/deserialization in `src/inspector/storage.rs`
+4. Load imported storage into host environment before execution
+5. Add round-trip tests
+6. Commit: `feat: add storage snapshot import/export`
+
+## Acceptance Criteria
+- [ ] `--export-storage` saves all storage keys and values to JSON
+- [ ] `--import-storage` correctly pre-seeds storage
+- [ ] Exported JSON is human-readable and editable
+- [ ] Round-trip test (export → import → execute) passes
+- [ ] Tests included
+

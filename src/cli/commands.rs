@@ -1,6 +1,6 @@
 use crate::cli::args::{
-    CompareArgs, InspectArgs, InteractiveArgs, OptimizeArgs, ProfileArgs, RunArgs, TuiArgs,
-    UpgradeCheckArgs, Verbosity, SymbolicArgs,
+    CompareArgs, InspectArgs, InteractiveArgs, OptimizeArgs, ProfileArgs, RunArgs, SymbolicArgs,
+    TuiArgs, UpgradeCheckArgs, Verbosity,
 };
 use crate::debugger::engine::DebuggerEngine;
 use crate::debugger::instruction_pointer::StepMode;
@@ -95,7 +95,7 @@ fn run_batch(args: &RunArgs, batch_file: &std::path::Path) -> Result<()> {
 }
 
 /// Execute the run command.
-pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
+pub fn run(args: RunArgs, verbosity: Verbosity) -> Result<()> {
     // Handle batch execution mode
     if let Some(batch_file) = &args.batch_args {
         return run_batch(&args, batch_file);
@@ -110,6 +110,20 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
 
     let wasm_bytes = fs::read(&args.contract)
         .with_context(|| format!("Failed to read WASM file: {:?}", args.contract))?;
+
+    let checksum = crate::utils::wasm::compute_checksum(&wasm_bytes);
+    if verbosity == Verbosity::Verbose {
+        print_info(format!("WASM SHA-256 Checksum: {}", checksum));
+    }
+    if let Some(ref expected) = args.expected_hash {
+        if checksum != *expected {
+            anyhow::bail!(
+                "WASM checksum mismatch! Expected {}, but got {}",
+                expected,
+                checksum
+            );
+        }
+    }
 
     print_success(format!(
         "Contract loaded successfully ({} bytes)",
@@ -147,7 +161,7 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
 
     if let Some(n) = args.repeat {
         logging::log_repeat_execution(&args.function, n as usize);
-        let runner = RepeatRunner::new(wasm_bytes, args.breakpoint, args.condition, initial_storage);
+        let runner = RepeatRunner::new(wasm_bytes, args.breakpoint, initial_storage);
         let stats = runner.run(&args.function, parsed_args.as_deref(), n)?;
         stats.display();
         return Ok(());
@@ -161,6 +175,8 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
     logging::log_execution_start(&args.function, parsed_args.as_deref());
 
     let mut executor = ContractExecutor::new(wasm_bytes.clone())?;
+    executor.set_timeout(args.timeout);
+
     if let Some(storage) = initial_storage {
         executor.set_initial_storage(storage)?;
     }
@@ -168,7 +184,7 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
         executor.set_mock_specs(&args.mock)?;
     }
 
-    let mut engine = DebuggerEngine::new(executor, args.breakpoint, args.condition);
+    let mut engine = DebuggerEngine::new(executor, args.breakpoint);
 
     if args.instruction_debug {
         print_info("Enabling instruction-level debugging...");
@@ -187,10 +203,27 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
     }
 
     print_info("\n--- Execution Start ---\n");
+    let storage_before = engine.executor().get_storage_snapshot()?;
     let result = engine.execute(&args.function, parsed_args.as_deref())?;
+    let storage_after = engine.executor().get_storage_snapshot()?;
     print_success("\n--- Execution Complete ---\n");
     print_success(format!("Result: {:?}", result));
     logging::log_execution_complete(&result);
+
+    let storage_diff = crate::inspector::storage::StorageInspector::compute_diff(
+        &storage_before,
+        &storage_after,
+        &args.alert_on_change,
+    );
+    if !storage_diff.is_empty() || !args.alert_on_change.is_empty() {
+        print_info("\n--- Storage Changes ---");
+        crate::inspector::storage::StorageInspector::display_diff(&storage_diff);
+    }
+
+    if let Some(export_path) = &args.export_storage {
+        print_info(format!("\nExporting storage to: {:?}", export_path));
+        crate::inspector::storage::StorageState::export_to_file(&storage_after, export_path)?;
+    }
     let mock_calls = engine.executor().get_mock_call_log();
     if !args.mock.is_empty() {
         display_mock_call_log(&mock_calls);
@@ -283,6 +316,8 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
     {
         let mut output = serde_json::json!({
             "result": result,
+            "wasm_hash": checksum,
+            "alerts": storage_diff.triggered_alerts,
         });
 
         if let Some(events) = json_events {
@@ -369,7 +404,7 @@ fn run_dry_run(args: &RunArgs) -> Result<()> {
 
     let storage_snapshot = executor.snapshot_storage()?;
 
-    let mut engine = DebuggerEngine::new(executor, args.breakpoint.clone(), args.condition.clone());
+    let mut engine = DebuggerEngine::new(executor, args.breakpoint.clone());
 
     print_info("\n[DRY RUN] --- Execution Start ---\n");
     let result = engine.execute(&args.function, parsed_args.as_deref())?;
@@ -435,7 +470,7 @@ pub fn interactive(args: InteractiveArgs, _verbosity: Verbosity) -> Result<()> {
     }
 
     let executor = ContractExecutor::new(wasm_bytes)?;
-    let engine = DebuggerEngine::new(executor, vec![], vec![]);
+    let engine = DebuggerEngine::new(executor, vec![]);
 
     print_info("\nStarting interactive mode...");
     print_info("Type 'help' for available commands\n");
@@ -474,7 +509,7 @@ pub fn tui(args: TuiArgs, _verbosity: Verbosity) -> Result<()> {
         executor.set_initial_storage(storage)?;
     }
 
-    let mut engine = DebuggerEngine::new(executor, args.breakpoint, args.condition);
+    let mut engine = DebuggerEngine::new(executor, args.breakpoint);
 
     // Pre-execute so live data is available immediately in the dashboard
     let _ = engine.execute(&args.function, parsed_args.as_deref());
@@ -804,8 +839,12 @@ pub fn compare(args: CompareArgs) -> Result<()> {
 
 /// Execute the symbolic command.
 pub fn symbolic(args: SymbolicArgs, _verbosity: Verbosity) -> Result<()> {
-    print_info(format!("Starting symbolic execution analysis for contract: {:?}", args.contract));
-    let wasm_bytes = fs::read(&args.contract).with_context(|| format!("Failed to read WASM file {:?}", args.contract))?;
+    print_info(format!(
+        "Starting symbolic execution analysis for contract: {:?}",
+        args.contract
+    ));
+    let wasm_bytes = fs::read(&args.contract)
+        .with_context(|| format!("Failed to read WASM file {:?}", args.contract))?;
 
     let analyzer = crate::analyzer::symbolic::SymbolicAnalyzer::new();
     let report = analyzer.analyze(&wasm_bytes, &args.function)?;
@@ -820,7 +859,7 @@ pub fn symbolic(args: SymbolicArgs, _verbosity: Verbosity) -> Result<()> {
     } else {
         println!("{}", toml);
     }
-    
+
     Ok(())
 }
 

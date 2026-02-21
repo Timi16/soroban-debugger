@@ -1,0 +1,18 @@
+    Checking soroban-debugger v0.1.0 (C:\Users\nwaug\Desktop\Blockchain\DripsWave\soroban-debugger)
+error[E0425]: cannot find value `verbosity` in this scope
+   --> src\cli\commands.rs:115:8
+    |
+ 98 | pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
+    |                           ---------- `_verbosity` defined here
+...
+115 |     if verbosity == Verbosity::Verbose {
+    |        ^^^^^^^^^
+    |
+help: the leading underscore in `_verbosity` marks it as unused, consider renaming it to `verbosity`
+    |
+ 98 - pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
+ 98 + pub fn run(args: RunArgs, verbosity: Verbosity) -> Result<()> {
+    |
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `soroban-debugger` (lib) due to 1 previous error

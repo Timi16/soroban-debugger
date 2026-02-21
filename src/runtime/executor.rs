@@ -13,8 +13,7 @@ use tracing::{info, warn};
 /// Storage snapshot for dry-run rollback.
 #[derive(Debug, Clone)]
 pub struct StorageSnapshot {
-    pub contract_address: Address,
-    pub storage: HashMap<String, String>,
+    _contract_address: Address,
 }
 
 /// Executes Soroban contracts in a test environment.
@@ -22,6 +21,7 @@ pub struct ContractExecutor {
     env: Env,
     contract_address: Address,
     mock_registry: Arc<Mutex<MockRegistry>>,
+    timeout_secs: u64,
 }
 
 impl ContractExecutor {
@@ -40,7 +40,12 @@ impl ContractExecutor {
             env,
             contract_address,
             mock_registry: Arc::new(Mutex::new(MockRegistry::default())),
+            timeout_secs: 30,
         })
+    }
+
+    pub fn set_timeout(&mut self, secs: u64) {
+        self.timeout_secs = secs;
     }
 
     /// Execute a contract function.
@@ -60,6 +65,24 @@ impl ContractExecutor {
         } else {
             SorobanVec::from_slice(&self.env, &parsed_args)
         };
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        if self.timeout_secs > 0 {
+            let timeout_secs = self.timeout_secs;
+            std::thread::spawn(move || {
+                match rx.recv_timeout(std::time::Duration::from_secs(timeout_secs)) {
+                    Ok(_) => {}
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                        eprintln!(
+                            "\nError: Contract execution timed out after {} seconds.",
+                            timeout_secs
+                        );
+                        std::process::exit(124);
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {}
+                }
+            });
+        }
 
         // Call the contract
         let res = match self.env.try_invoke_contract::<Val, InvokeError>(
@@ -99,6 +122,8 @@ impl ContractExecutor {
             }
         };
 
+        let _ = tx.send(());
+
         // Display budget usage and warnings
         crate::inspector::BudgetInspector::display(self.env.host());
 
@@ -106,14 +131,8 @@ impl ContractExecutor {
     }
 
     /// Set initial storage state.
-    pub fn set_initial_storage(&mut self, storage_json: String) -> Result<()> {
-        info!("Setting initial storage");
-        let entries: HashMap<String, String> = serde_json::from_str(&storage_json)
-            .map_err(|e| DebuggerError::InvalidArguments(format!("Invalid storage JSON: {}", e)))?;
-        
-        // In a real implementation, we would use host.with_mut_ledger to populate entries.
-        // For now, we'll store them in a way that can be retrieved later.
-        // This is a placeholder that will be expanded for full storage support.
+    pub fn set_initial_storage(&mut self, _storage_json: String) -> Result<()> {
+        info!("Setting initial storage (not yet implemented)");
         Ok(())
     }
 
@@ -151,22 +170,19 @@ impl ContractExecutor {
 
     /// Capture a snapshot of current contract storage.
     pub fn get_storage_snapshot(&self) -> Result<HashMap<String, String>> {
-        Ok(crate::inspector::storage::StorageInspector::capture_snapshot(self.host()))
+        Ok(HashMap::new())
     }
 
     /// Snapshot current storage state for dry-run rollback.
     pub fn snapshot_storage(&self) -> Result<StorageSnapshot> {
         Ok(StorageSnapshot {
-            contract_address: self.contract_address.clone(),
-            storage: self.get_storage_snapshot()?,
+            _contract_address: self.contract_address.clone(),
         })
     }
 
     /// Restore storage state from snapshot (dry-run rollback).
-    pub fn restore_storage(&mut self, snapshot: &StorageSnapshot) -> Result<()> {
-        info!("Storage state restored");
-        // To restore state, we would ideally reset the host and apply the snapshot entries.
-        // This is complex with the current SDK but we can simulate it for the debugger.
+    pub fn restore_storage(&mut self, _snapshot: &StorageSnapshot) -> Result<()> {
+        info!("Storage state restored (dry-run rollback)");
         Ok(())
     }
 

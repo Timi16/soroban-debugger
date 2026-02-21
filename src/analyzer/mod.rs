@@ -1,2 +1,2 @@
-pub mod upgrade;
 pub mod symbolic;
+pub mod upgrade;

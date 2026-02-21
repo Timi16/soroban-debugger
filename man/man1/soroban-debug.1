@@ -4,7 +4,7 @@
 .SH NAME
 soroban\-debug \- A debugger for Soroban smart contracts
 .SH SYNOPSIS
-\fBsoroban\-debug\fR [\fB\-q\fR|\fB\-\-quiet\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-budget\-trend\fR] [\fB\-\-trend\-contract\fR] [\fB\-\-trend\-function\fR] [\fB\-\-version\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
+\fBsoroban\-debug\fR [\fB\-q\fR|\fB\-\-quiet\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-budget\-trend\fR] [\fB\-\-trend\-contract\fR] [\fB\-\-trend\-function\fR] [\fB\-\-version\-verbose\fR] [\fB\-\-list\-functions\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
 .SH DESCRIPTION
 A debugger for Soroban smart contracts
 .SH OPTIONS
@@ -26,6 +26,9 @@ Filter budget trend by function name
 .TP
 \fB\-\-version\-verbose\fR
 Show detailed version information
+.TP
+\fB\-\-list\-functions\fR \fI<LIST_FUNCTIONS>\fR
+Show exported functions for a given contract (shorthand for inspect \-\-functions)
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

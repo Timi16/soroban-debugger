@@ -4,6 +4,14 @@ use wasmparser::{Parser, Payload};
 
 // ─── existing public API (unchanged) ─────────────────────────────────────────
 
+/// Compute the SHA-256 checksum of a WASM binary.
+pub fn compute_checksum(wasm_bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(wasm_bytes);
+    hex::encode(hasher.finalize())
+}
+
 /// Parse exported functions from a WASM module.
 pub fn parse_functions(wasm_bytes: &[u8]) -> Result<Vec<String>> {
     let mut functions = Vec::new();

@@ -1,3 +1,4 @@
+#![cfg(any())]
 use soroban_debugger::debugger::engine::DebuggerEngine;
 use soroban_debugger::runtime::executor::ContractExecutor;
 

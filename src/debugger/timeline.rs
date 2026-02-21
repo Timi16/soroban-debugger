@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use crate::inspector::budget::BudgetInfo;
 use crate::inspector::stack::CallFrame;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// A snapshot of the execution state at a specific point in time.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,7 +57,7 @@ impl TimelineManager {
         } else {
             self.current_pos = self.history.len();
         }
-        
+
         self.history.push(snapshot);
         self.current_pos = self.history.len() - 1;
     }

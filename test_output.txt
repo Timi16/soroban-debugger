@@ -1,0 +1,162 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.94s
+     Running unittests src\lib.rs (target\debug\deps\soroban_debugger-e4d181d603ffd00e.exe)
+
+running 142 tests
+test analyzer::upgrade::tests::test_diff_signatures_add_remove ... ok
+test analyzer::upgrade::tests::test_diff_signatures_no_changes ... ok
+test compare::engine::tests::test_identical_traces ... ok
+test compare::engine::tests::test_budget_diff_computes_deltas ... ok
+test compare::engine::tests::test_flow_diff_detects_difference ... ok
+test compare::engine::tests::test_event_diff_detects_difference ... ok
+test batch::tests::test_batch_summary ... ok
+test compare::engine::tests::test_flow_diff_identical ... ok
+test batch::tests::test_batch_item_deserialization ... ok
+test compare::engine::tests::test_missing_budget_in_one_trace ... ok
+test compare::engine::tests::test_render_report_no_panic ... ok
+test compare::engine::tests::test_return_value_diff_equal ... ok
+test compare::engine::tests::test_return_value_diff_not_equal ... ok
+test compare::engine::tests::test_storage_diff_detects_changes ... ok
+test debugger::breakpoint::tests::test_add_breakpoint ... ok
+test debugger::breakpoint::tests::test_list_breakpoints ... ok
+test debugger::breakpoint::tests::test_remove_breakpoint ... ok
+test codegen::test_gen_tests::tests::test_generate_test_file ... ok
+test debugger::instruction_pointer::tests::test_call_stack_tracking ... ok
+test debugger::instruction_pointer::tests::test_instruction_pointer_advance ... ok
+test debugger::instruction_pointer::tests::test_step_back ... ok
+test debugger::instruction_pointer::tests::test_stepping_modes ... ok
+test history::tests::test_regression_detection ... ok
+test inspector::budget::tests::test_budget_percentage_calculation ... ok
+test inspector::budget::tests::test_check_thresholds_critical ... ok
+test inspector::budget::tests::test_check_thresholds_none ... ok
+test inspector::budget::tests::test_check_thresholds_red ... ok
+test inspector::budget::tests::test_check_thresholds_yellow ... ok
+test inspector::events::tests::test_filter_events ... ok
+test history::tests::test_persistence_logic ... ok
+test inspector::storage::tests::test_analyze_hot_keys_and_suggestions ... ok
+test inspector::storage::tests::test_display_filtered_empty_storage ... ok
+test inspector::storage::tests::test_empty_filter_matches_everything ... ok
+test inspector::storage::tests::test_display_access_report ... ok
+test inspector::storage::tests::test_get_filtered ... ok
+test inspector::storage::tests::test_get_filtered_no_match ... ok
+test inspector::storage::tests::test_multiple_filters_or_logic ... ok
+test inspector::storage::tests::test_parse_exact_pattern ... ok
+test inspector::storage::tests::test_parse_invalid_regex ... ok
+test inspector::storage::tests::test_parse_prefix_pattern ... ok
+test inspector::storage::tests::test_single_prefix_filter ... ok
+test inspector::storage::tests::test_storage_diff_added ... ok
+test inspector::storage::tests::test_storage_diff_deleted ... ok
+test inspector::storage::tests::test_storage_diff_modified ... ok
+test inspector::storage::tests::test_storage_diff_multiple_changes ... ok
+test inspector::storage::tests::test_filter_summary ... ok
+test inspector::storage::tests::test_track_read_and_write ... ok
+test repeat::tests::test_aggregate_multiple_runs ... ok
+test repeat::tests::test_aggregate_single_run ... ok
+test repeat::tests::test_consistent_results ... ok
+test repeat::tests::test_display_does_not_panic ... ok
+test repeat::tests::test_inconsistent_results_detected ... ok
+test repeat::tests::test_truncate_long_string ... ok
+test inspector::storage::tests::test_parse_regex_pattern ... ok
+test repeat::tests::test_truncate_short_string ... ok
+test runtime::instruction::tests::test_control_flow_detection ... ok
+test inspector::storage::tests::test_single_regex_filter ... ok
+test runtime::instruction::tests::test_instruction_display ... ok
+test runtime::instruction::tests::test_instruction_operands ... ok
+test inspector::storage::tests::test_storage_export_empty ... ok
+test inspector::storage::tests::test_storage_import_invalid_json ... ok
+test inspector::storage::tests::test_storage_export_import ... ok
+test simulator::loader::tests::test_apply_to_environment ... ok
+test simulator::loader::tests::test_get_account_from_loader ... ok
+test runtime::mocking::tests::resolves_mocked_cross_contract_call ... ok
+test runtime::mocking::tests::logs_unmocked_cross_contract_call ... ok
+test simulator::loader::tests::test_list_accounts_and_contracts ... ok
+test simulator::loader::tests::test_validation_passes_for_valid_snapshot ... ok
+test simulator::snapshot::tests::test_compute_account_additions ... ok
+test simulator::snapshot::tests::test_compute_account_changes ... ok
+test simulator::snapshot::tests::test_diff_has_changes ... ok
+test simulator::snapshot::tests::test_diff_no_changes ... ok
+test simulator::loader::tests::test_load_from_file ... ok
+test inspector::storage::tests::test_multiple_mixed_filters ... ok
+test simulator::state::tests::test_account_data_operations ... ok
+test simulator::state::tests::test_account_validation ... ok
+test simulator::state::tests::test_contract_storage_operations ... ok
+test simulator::state::tests::test_contract_validation ... ok
+test simulator::state::tests::test_create_snapshot ... ok
+test simulator::state::tests::test_snapshot_validation_duplicate_accounts ... ok
+test utils::arguments::tests::test_bare_null_is_void ... ok
+test simulator::snapshot::tests::test_save_and_load_snapshot ... ok
+test utils::arguments::tests::test_mixed_typed_and_bare_in_array ... ok
+test utils::arguments::tests::test_multiple_typed_values_in_array ... ok
+test utils::arguments::tests::test_object_with_non_string_type_is_map ... ok
+test utils::arguments::tests::test_object_with_type_key_but_extra_fields_is_map ... ok
+test utils::arguments::tests::test_parse_array_mixed_types ... ok
+test utils::arguments::tests::test_parse_array_of_objects ... ok
+test utils::arguments::tests::test_parse_array_with_objects_and_primitives ... ok
+test utils::arguments::tests::test_parse_bool_false ... ok
+test utils::arguments::tests::test_parse_bool_true ... ok
+test utils::arguments::tests::test_parse_complex_nested_structure ... ok
+test utils::arguments::tests::test_parse_deeply_nested ... ok
+test utils::arguments::tests::test_parse_empty_array ... ok
+test utils::arguments::tests::test_parse_empty_string_error ... ok
+test utils::arguments::tests::test_parse_float_not_supported ... ok
+test utils::arguments::tests::test_parse_invalid_json ... ok
+test utils::arguments::tests::test_parse_large_numbers ... ok
+test utils::arguments::tests::test_parse_negative_numbers ... ok
+test utils::arguments::tests::test_parse_nested_object ... ok
+test utils::arguments::tests::test_parse_null ... ok
+test utils::arguments::tests::test_parse_object_with_array ... ok
+test utils::arguments::tests::test_parse_object_with_empty_strings ... ok
+test utils::arguments::tests::test_parse_object_with_numeric_keys ... ok
+test utils::arguments::tests::test_parse_simple_object ... ok
+test utils::arguments::tests::test_parse_single_number ... ok
+test utils::arguments::tests::test_parse_single_string ... ok
+test utils::arguments::tests::test_parse_whitespace_only_error ... ok
+test utils::arguments::tests::test_typed_annotation_as_top_level ... ok
+test utils::arguments::tests::test_typed_bool ... ok
+test utils::arguments::tests::test_typed_bool_false ... ok
+test utils::arguments::tests::test_typed_i128 ... ok
+test utils::arguments::tests::test_typed_i32 ... ok
+test utils::arguments::tests::test_typed_i32_max ... ok
+test utils::arguments::tests::test_typed_i32_min ... ok
+test utils::arguments::tests::test_typed_i32_overflow ... ok
+test utils::arguments::tests::test_typed_i64 ... ok
+test utils::arguments::tests::test_typed_option_none ... ok
+test utils::arguments::tests::test_typed_option_some ... ok
+test utils::arguments::tests::test_typed_string ... ok
+test utils::arguments::tests::test_typed_symbol ... ok
+test utils::arguments::tests::test_typed_tuple ... ok
+test utils::arguments::tests::test_typed_tuple_wrong_arity ... ok
+test utils::arguments::tests::test_typed_type_value_mismatch_bool_as_u32 ... ok
+test utils::arguments::tests::test_typed_type_value_mismatch_number_as_string ... ok
+test utils::arguments::tests::test_typed_type_value_mismatch_string_as_bool ... ok
+test utils::arguments::tests::test_typed_u128 ... ok
+test utils::arguments::tests::test_typed_u32 ... ok
+test utils::arguments::tests::test_typed_u32_max ... ok
+test utils::arguments::tests::test_typed_u32_negative_rejected ... ok
+test utils::arguments::tests::test_typed_u32_overflow ... ok
+test utils::arguments::tests::test_typed_u32_zero ... ok
+test utils::arguments::tests::test_typed_u64 ... ok
+test utils::wasm::tests::contract_metadata_is_empty_when_default ... ok
+test utils::arguments::tests::test_typed_unsupported_type ... FAILED
+test utils::wasm::tests::contract_metadata_not_empty_when_any_field_set ... ok
+test utils::wasm::tests::extract_metadata_from_json_custom_section ... ok
+test utils::wasm::tests::extract_metadata_from_line_based_custom_section ... ok
+test utils::wasm::tests::extract_metadata_from_wasm_without_metadata_section ... ok
+test utils::wasm::tests::extract_metadata_ignores_non_utf8_payload ... ok
+test utils::wasm::tests::extract_metadata_ignores_unrelated_custom_sections ... ok
+test utils::wasm::tests::test_get_module_info_with_sections ... ok
+
+failures:
+
+---- utils::arguments::tests::test_typed_unsupported_type stdout ----
+
+thread 'utils::arguments::tests::test_typed_unsupported_type' (33072) panicked at src\utils\arguments.rs:924:9:
+Expected unsupported type error, got: Failed to convert value: Array element 0: Invalid argument: Bytes must start with '0x' or 'base64:'
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    utils::arguments::tests::test_typed_unsupported_type
+
+test result: FAILED. 141 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `--lib`
