@@ -4,7 +4,10 @@
 use std::{fs, path::Path};
 
 use crate::{
-    utils::wasm::{extract_contract_metadata, get_module_info, parse_functions},
+    utils::wasm::{
+        extract_contract_metadata, get_module_info,
+        parse_function_signatures,
+    },
     InspectArgs, Result,
 };
 
@@ -31,9 +34,9 @@ pub fn run(args: &InspectArgs) -> Result<()> {
 /// This function is deliberately kept separate from `run` so that tests can
 /// drive it without touching the filesystem.
 fn print_report(path: &Path, wasm_bytes: &[u8]) -> Result<()> {
-    let info      = get_module_info(wasm_bytes)?;
-    let functions = parse_functions(wasm_bytes)?;
-    let metadata  = extract_contract_metadata(wasm_bytes)?;
+    let info       = get_module_info(wasm_bytes)?;
+    let signatures = parse_function_signatures(wasm_bytes)?;
+    let metadata   = extract_contract_metadata(wasm_bytes)?;
 
     let heavy = "═".repeat(BAR_WIDTH);
 
@@ -53,13 +56,33 @@ fn print_report(path: &Path, wasm_bytes: &[u8]) -> Result<()> {
     println!("  Exports    : {}", info.export_count);
     println!();
 
-    // ── exported functions ────────────────────────────────────────────────────
+    // ── function signatures ───────────────────────────────────────────────────
     section_header("Exported Functions");
-    if functions.is_empty() {
-        println!("  (none)");
+    if signatures.is_empty() {
+        println!("  (no contractspecv0 section found)");
     } else {
-        for name in &functions {
-            println!("  • {name}");
+        let name_w = signatures.iter().map(|s| s.name.len()).max().unwrap_or(8);
+        println!("  {:<name_w$}  Signature", "Function", name_w = name_w);
+        println!("  {}  {}", "─".repeat(name_w), "─".repeat(BAR_WIDTH - name_w - 4));
+
+        for sig in &signatures {
+            let params: Vec<String> = sig
+                .params
+                .iter()
+                .map(|p| format!("{}: {}", p.name, p.type_name))
+                .collect();
+
+            let ret = match &sig.return_type {
+                Some(t) if t != "Void" => format!(" -> {t}"),
+                _                      => String::new(),
+            };
+
+            println!(
+                "  {:<name_w$}  ({}){ret}",
+                sig.name,
+                params.join(", "),
+                name_w = name_w,
+            );
         }
     }
     println!();

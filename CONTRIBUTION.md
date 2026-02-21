@@ -69,6 +69,30 @@ cargo test test_name
 cargo test --test integration/basic-tests
 ```
 
+### Fuzzing
+
+Fuzzing helps discover crashes and panics in critical code paths like WASM parsing and argument parsing.
+
+**Prerequisites:**
+Install `cargo-fuzz`:
+```sh
+cargo install cargo-fuzz
+```
+
+**Running a fuzz target:**
+```sh
+# Run WASM loading fuzzer
+cargo +nightly fuzz run wasm_loading
+
+# Run argument parser fuzzer
+cargo +nightly fuzz run arg_parser
+
+# Run storage key parsing fuzzer
+cargo +nightly fuzz run storage_keys
+```
+
+By default, fuzzers run indefinitely. You can limit the execution time with `-- -max_total_time=<seconds>`.
+
 Tests should be:
 - Isolated and repeatable
 - Well-named and descriptive

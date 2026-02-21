@@ -1,0 +1,36 @@
+[package]
+name = "soroban-debugger-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+soroban-sdk = { version = "22.0.0", features = ["testutils"] }
+
+[dependencies.soroban-debugger]
+path = ".."
+
+[[bin]]
+name = "wasm_loading"
+path = "fuzz_targets/wasm_loading.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "arg_parser"
+path = "fuzz_targets/arg_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "storage_keys"
+path = "fuzz_targets/storage_keys.rs"
+test = false
+doc = false
+bench = false

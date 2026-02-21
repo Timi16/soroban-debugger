@@ -1,6 +1,6 @@
 use crate::cli::args::{
-    CompareArgs, InspectArgs, InteractiveArgs, OptimizeArgs, ProfileArgs, RunArgs,
-    UpgradeCheckArgs, Verbosity,
+    CompareArgs, InspectArgs, InteractiveArgs, ListFunctionsArgs, OptimizeArgs, ProfileArgs,
+    RunArgs, UpgradeCheckArgs, Verbosity,
 };
 use crate::debugger::engine::DebuggerEngine;
 use crate::debugger::instruction_pointer::StepMode;
@@ -13,6 +13,9 @@ use crate::ui::tui::DebuggerUI;
 use crate::Result;
 use anyhow::Context;
 use std::fs;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::Path;
 
 fn print_info(message: impl AsRef<str>) {
     println!("{}", Formatter::info(message));
@@ -24,6 +27,21 @@ fn print_success(message: impl AsRef<str>) {
 
 fn print_warning(message: impl AsRef<str>) {
     println!("{}", Formatter::warning(message));
+}
+
+fn write_to_file(path: &Path, content: &str, append: bool) -> Result<()> {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .append(append)
+        .truncate(!append)
+        .open(path)
+        .with_context(|| format!("Failed to open file: {:?}", path))?;
+
+    file.write_all(content.as_bytes())
+        .with_context(|| format!("Failed to write to file: {:?}", path))?;
+
+    Ok(())
 }
 
 /// Execute batch mode with parallel execution
@@ -155,6 +173,12 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
         executor.set_initial_storage(storage)?;
     }
 
+    let host = executor.host();
+    let initial_memory =
+        crate::inspector::budget::BudgetInspector::get_cpu_usage(host).memory_bytes;
+    let mut memory_tracker = crate::inspector::budget::MemoryTracker::new(initial_memory);
+    let mut instruction_counter = crate::inspector::instructions::InstructionCounter::new();
+
     let mut engine = DebuggerEngine::new(executor, args.breakpoint);
 
     // Execute with debugging
@@ -168,6 +192,230 @@ pub fn run(args: RunArgs, _verbosity: Verbosity) -> Result<()> {
             "execution_time_ms": execution_result.execution_time_ms,
         });
         println!("{}", serde_json::to_string_pretty(&json_output)?);
+    if args.instruction_debug {
+        print_info("Enabling instruction-level debugging...");
+        engine.enable_instruction_debug(&wasm_bytes)?;
+
+        if args.step_instructions {
+            let step_mode = parse_step_mode(&args.step_mode);
+            print_info(format!(
+                "Starting instruction stepping in '{}' mode",
+                args.step_mode
+            ));
+            engine.start_instruction_stepping(step_mode)?;
+            run_instruction_stepping(&mut engine, &args.function, parsed_args.as_deref())?;
+            return Ok(());
+        }
+    }
+
+    print_info("\n--- Execution Start ---\n");
+    memory_tracker.record_snapshot(engine.executor().host(), "before_execution");
+    instruction_counter.start_function(&args.function, engine.executor().host());
+    let result = engine.execute(&args.function, parsed_args.as_deref())?;
+    instruction_counter.end_function(engine.executor().host());
+
+    if let Ok(diagnostic_events) = engine.executor().get_diagnostic_events() {
+        let mut previous_memory = initial_memory;
+        for (idx, _event) in diagnostic_events.iter().enumerate() {
+            let current_memory =
+                crate::inspector::budget::BudgetInspector::get_cpu_usage(engine.executor().host())
+                    .memory_bytes;
+            if current_memory != previous_memory {
+                memory_tracker.record_memory_change(
+                    previous_memory,
+                    current_memory,
+                    &format!("diagnostic_event_{}", idx),
+                );
+                previous_memory = current_memory;
+            }
+        }
+    }
+
+    memory_tracker.record_snapshot(engine.executor().host(), "after_execution");
+    print_success("\n--- Execution Complete ---\n");
+    print_success(format!("Result: {:?}", result));
+    logging::log_execution_complete(&result);
+
+    let memory_summary = memory_tracker.finalize(engine.executor().host());
+    memory_summary.display();
+
+    instruction_counter.display();
+
+    let mut json_events = None;
+    if args.show_events {
+        print_info("\n--- Events ---");
+        let events = engine.executor().get_events()?;
+        let filtered_events = if let Some(topic) = &args.filter_topic {
+            crate::inspector::events::EventInspector::filter_events(&events, topic)
+        } else {
+            events
+        };
+
+        if filtered_events.is_empty() {
+            print_warning("No events captured.");
+        } else {
+            for (i, event) in filtered_events.iter().enumerate() {
+                print_info(format!("Event #{}:", i));
+                if let Some(contract_id) = &event.contract_id {
+                    logging::log_event_emitted(contract_id, event.topics.len());
+                }
+                print_info(format!(
+                    "  Contract: {}",
+                    event.contract_id.as_deref().unwrap_or("<none>")
+                ));
+                print_info(format!("  Topics: {:?}", event.topics));
+                print_info(format!("  Data: {}", event.data));
+            }
+        }
+
+        json_events = Some(filtered_events);
+    }
+
+    if !args.storage_filter.is_empty() {
+        let storage_filter = crate::inspector::storage::StorageFilter::new(&args.storage_filter)
+            .map_err(|e| anyhow::anyhow!("Invalid storage filter: {}", e))?;
+
+        print_info("\n--- Storage ---");
+        let inspector = crate::inspector::StorageInspector::new();
+        inspector.display_filtered(&storage_filter);
+        print_info("(Storage view is currently placeholder data)");
+    }
+
+    let mut json_auth = None;
+    if args.show_auth {
+        let auth_tree = engine.executor().get_auth_tree()?;
+        if args.json {
+            let json_output = crate::inspector::auth::AuthInspector::to_json(&auth_tree)?;
+            println!("{}", json_output);
+        } else {
+            println!("\n--- Authorizations ---");
+            crate::inspector::auth::AuthInspector::display(&auth_tree);
+        }
+        json_auth = Some(auth_tree);
+    }
+
+    let is_json_output = args.json
+        || args
+            .format
+            .as_deref()
+            .map(|f| f.eq_ignore_ascii_case("json"))
+            .unwrap_or(false);
+
+    let output_content = if is_json_output {
+        let mut output = serde_json::json!({
+            "result": result,
+        });
+
+        if let Some(events) = json_events {
+            output["events"] = serde_json::Value::Array(
+                events
+                    .into_iter()
+                    .map(|event| {
+                        serde_json::json!({
+                            "contract_id": event.contract_id,
+                            "topics": event.topics,
+                            "data": event.data,
+                        })
+                    })
+                    .collect(),
+            );
+        }
+        if let Some(auth_tree) = json_auth {
+            output["auth"] = serde_json::to_value(auth_tree).unwrap_or(serde_json::Value::Null);
+        }
+
+        let memory_json = serde_json::to_value(&memory_summary).unwrap_or(serde_json::Value::Null);
+        output["memory"] = memory_json;
+
+        let instruction_counts = instruction_counter.get_counts();
+        let instruction_json =
+            serde_json::to_value(instruction_counts).unwrap_or(serde_json::Value::Null);
+        output["instruction_counts"] = instruction_json;
+
+        let content = serde_json::to_string_pretty(&output)?;
+        println!("{}", content);
+        content
+    } else {
+        let mut text_output = Vec::new();
+        text_output.push(format!("Result: {:?}", result));
+
+        let memory_text = format!(
+            "\n=== Memory Allocation Summary ===\nPeak Memory Usage: {} bytes\nAllocation Count: {}\nTotal Allocated Bytes: {} bytes\nInitial Memory: {} bytes\nFinal Memory: {} bytes\nMemory Delta: {} bytes",
+            memory_summary.peak_memory,
+            memory_summary.allocation_count,
+            memory_summary.total_allocated_bytes,
+            memory_summary.initial_memory,
+            memory_summary.final_memory,
+            memory_summary.final_memory.saturating_sub(memory_summary.initial_memory)
+        );
+        text_output.push(memory_text);
+
+        if let Some(events) = json_events {
+            text_output.push("\n--- Events ---".to_string());
+            for (i, event) in events.iter().enumerate() {
+                text_output.push(format!("Event #{}:", i));
+                text_output.push(format!(
+                    "  Contract: {}",
+                    event.contract_id.as_deref().unwrap_or("<none>")
+                ));
+                text_output.push(format!("  Topics: {:?}", event.topics));
+                text_output.push(format!("  Data: {}", event.data));
+            }
+        }
+
+        if let Some(auth_tree) = json_auth {
+            text_output.push("\n--- Authorizations ---".to_string());
+            let auth_json = serde_json::to_string_pretty(&auth_tree)
+                .unwrap_or_else(|_| "Failed to serialize auth tree".to_string());
+            text_output.push(auth_json);
+        }
+
+        text_output.join("\n")
+    };
+
+    if let Some(output_path) = &args.save_output {
+        write_to_file(output_path, &output_content, args.append)?;
+        let mode = if args.append {
+            "appended to"
+        } else {
+            "written to"
+        };
+        print_success(format!("Results {}: {:?}", mode, output_path));
+    }
+
+    Ok(())
+}
+
+/// Execute run command in dry-run mode.
+fn run_dry_run(args: &RunArgs) -> Result<()> {
+    print_info(format!("[DRY RUN] Loading contract: {:?}", args.contract));
+
+    let wasm_bytes = fs::read(&args.contract)
+        .with_context(|| format!("Failed to read WASM file: {:?}", args.contract))?;
+
+    print_success(format!(
+        "[DRY RUN] Contract loaded successfully ({} bytes)",
+        wasm_bytes.len()
+    ));
+
+    if let Some(snapshot_path) = &args.network_snapshot {
+        print_info(format!(
+            "\n[DRY RUN] Loading network snapshot: {:?}",
+            snapshot_path
+        ));
+        let loader = SnapshotLoader::from_file(snapshot_path)?;
+        let loaded_snapshot = loader.apply_to_environment()?;
+        print_info(format!("[DRY RUN] {}", loaded_snapshot.format_summary()));
+    }
+
+    let parsed_args = if let Some(args_json) = &args.args {
+        Some(parse_args(args_json)?)
+    } else {
+        None
+    };
+
+    let initial_storage = if let Some(storage_json) = &args.storage {
+        Some(parse_storage(storage_json)?)
     } else {
         println!("Result: {}", execution_result.result);
         println!("Execution Time: {:.2}ms", execution_result.execution_time_ms);
@@ -284,6 +532,19 @@ pub fn inspect(args: InspectArgs, _verbosity: Verbosity) -> Result<()> {
 
     println!("\n{}", "=".repeat(54));
     Ok(())
+}
+
+/// Execute the list-functions command (shorthand for `inspect --functions`).
+///
+/// Constructs an [`InspectArgs`] with `functions: true` and delegates
+/// entirely to [`inspect`], guaranteeing identical output.
+pub fn list_functions(args: ListFunctionsArgs, verbosity: Verbosity) -> Result<()> {
+    let inspect_args = InspectArgs {
+        contract: args.contract,
+        functions: true,
+        metadata: false,
+    };
+    inspect(inspect_args, verbosity)
 }
 
 /// Parse JSON arguments with validation.

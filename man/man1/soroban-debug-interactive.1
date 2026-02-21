@@ -1,10 +1,10 @@
 .ie \n(.g .ds Aq \(aq
 .el .ds Aq '
-.TH interactive 1  "interactive " 
+.TH soroban-debug-interactive 1  "soroban-debug-interactive " 
 .SH NAME
-interactive \- Start an interactive debugging session
+soroban\-debug\-interactive \- Start an interactive debugging session
 .SH SYNOPSIS
-\fBinteractive\fR <\fB\-c\fR|\fB\-\-contract\fR> [\fB\-\-network\-snapshot\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBsoroban\-debug\-interactive\fR <\fB\-c\fR|\fB\-\-contract\fR> [\fB\-\-network\-snapshot\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Start an interactive debugging session
 .SH OPTIONS
@@ -14,9 +14,6 @@ Path to the contract WASM file
 .TP
 \fB\-\-network\-snapshot\fR \fI<NETWORK_SNAPSHOT>\fR
 Network snapshot file to load before starting interactive session
-.TP
-\fB\-v\fR, \fB\-\-verbose\fR
-Enable verbose output
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

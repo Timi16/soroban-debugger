@@ -1,0 +1,28 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH soroban-debug-profile 1  "soroban-debug-profile " 
+.SH NAME
+soroban\-debug\-profile \- Profile a single function execution and print hotspots + suggestions
+.SH SYNOPSIS
+\fBsoroban\-debug\-profile\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Profile a single function execution and print hotspots + suggestions
+.SH OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-contract\fR \fI<CONTRACT>\fR
+Path to the contract WASM file
+.TP
+\fB\-f\fR, \fB\-\-function\fR \fI<FUNCTION>\fR
+Function name to execute
+.TP
+\fB\-a\fR, \fB\-\-args\fR \fI<ARGS>\fR
+Function arguments as JSON array (e.g., \*(Aq["arg1", "arg2"]\*(Aq)
+.TP
+\fB\-o\fR, \fB\-\-output\fR \fI<OUTPUT>\fR
+Output file for the profile report (default: stdout)
+.TP
+\fB\-s\fR, \fB\-\-storage\fR \fI<STORAGE>\fR
+Initial storage state as JSON object
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

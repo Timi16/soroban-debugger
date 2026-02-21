@@ -78,6 +78,9 @@ fn main() -> Result<()> {
             soroban_debugger::cli::commands::profile(args)?;
             Ok(())
         }
+        Some(Commands::ListFunctions(args)) => {
+            soroban_debugger::cli::commands::list_functions(args, verbosity)
+        }
         None => {
             let mut cmd = Cli::command();
             cmd.print_help()?;

@@ -79,6 +79,9 @@ pub enum Commands {
 
     /// Compare two execution trace JSON files side-by-side
     Compare(CompareArgs),
+
+    /// List exported functions of a contract (shorthand for `inspect --functions`)
+    ListFunctions(ListFunctionsArgs),
 }
 
 #[derive(Parser)]
@@ -114,6 +117,78 @@ pub struct RunArgs {
     /// Output in JSON format
     #[arg(long)]
     pub json: bool,
+
+    /// Filter events by topic
+    #[arg(long)]
+    pub filter_topic: Option<String>,
+
+    /// Execute the contract call N times for stress testing
+    #[arg(long)]
+    pub repeat: Option<u32>,
+
+    /// Filter storage output by key pattern (repeatable). Supports:
+    ///   prefix*       — match keys starting with prefix
+    ///   re:<regex>    — match keys by regex
+    ///   exact_key     — match key exactly
+    #[arg(long, value_name = "PATTERN")]
+    pub storage_filter: Vec<String>,
+
+    /// Enable instruction-level debugging
+    #[arg(long)]
+    pub instruction_debug: bool,
+
+    /// Start with instruction stepping enabled
+    #[arg(long)]
+    pub step_instructions: bool,
+
+    /// Step mode for instruction debugging (into, over, out, block)
+    #[arg(long, default_value = "into")]
+    pub step_mode: String,
+    /// Execute contract in dry-run mode: simulate execution without persisting storage changes
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Path to JSON file containing array of argument sets for batch execution
+    #[arg(long)]
+    pub batch_args: Option<PathBuf>,
+
+    /// Save execution results to file
+    #[arg(long)]
+    pub save_output: Option<PathBuf>,
+
+    /// Append to output file instead of overwriting
+    #[arg(long, requires = "save_output")]
+    pub append: bool,
+}
+
+impl RunArgs {
+    pub fn merge_config(&mut self, config: &Config) {
+        // Breakpoints
+        if self.breakpoint.is_empty() && !config.debug.breakpoints.is_empty() {
+            self.breakpoint = config.debug.breakpoints.clone();
+        }
+
+        // Show events
+        if !self.show_events {
+            if let Some(show) = config.output.show_events {
+                self.show_events = show;
+            }
+        }
+
+        // Output Format
+        if self.format.is_none() {
+            self.format = config.output.format.clone();
+        }
+
+        // Verbosity: if config has a level > 0 and CLI verbose is false, enable it
+        if !self.verbose {
+            if let Some(level) = config.debug.verbosity {
+                if level > 0 {
+                    self.verbose = true;
+                }
+            }
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -146,6 +221,15 @@ pub struct InspectArgs {
     /// Show contract metadata
     #[arg(long)]
     pub metadata: bool,
+}
+
+/// Args for the `list-functions` shorthand command.
+/// Delegates to `inspect --functions` under the hood.
+#[derive(Parser)]
+pub struct ListFunctionsArgs {
+    /// Path to the contract WASM file
+    #[arg(short, long)]
+    pub contract: PathBuf,
 }
 
 #[derive(Parser)]
