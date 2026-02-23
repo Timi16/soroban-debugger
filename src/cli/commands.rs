@@ -347,9 +347,11 @@ pub fn run(args: RunArgs, verbosity: Verbosity) -> Result<()> {
             .map_err(|e| DebuggerError::StorageError(format!("Invalid storage filter: {}", e)))?;
 
         print_info("\n--- Storage ---");
-        let inspector = crate::inspector::StorageInspector::new();
+        let mut inspector = crate::inspector::StorageInspector::new();
+        for (k, v) in &storage_after {
+            inspector.set(k, v);
+        }
         inspector.display_filtered(&storage_filter);
-        print_info("(Storage view is currently placeholder data)");
     }
 
     let mut json_auth = None;
