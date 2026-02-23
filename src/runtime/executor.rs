@@ -31,6 +31,12 @@ pub struct StorageSnapshot {
 use crate::debugger::error_db::ErrorDatabase;
 
 /// Executes Soroban contracts in a test environment.
+pub struct ContractExecutor {
+    env: Env,
+    contract_address: Address,
+    last_execution: Option<ExecutionRecord>,
+    mock_registry: Arc<Mutex<MockRegistry>>,
+    wasm_bytes: Vec<u8>,
     timeout_secs: u64,
     error_db: ErrorDatabase,
     storage_inspector: crate::inspector::storage::StorageInspector,

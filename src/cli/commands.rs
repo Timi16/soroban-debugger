@@ -579,7 +579,7 @@ fn run_dry_run(args: &RunArgs) -> Result<()> {
 
 /// Execute the interactive command.
 #[tracing::instrument(skip_all, fields(contract = ?args.contract))]
-pub fn interactive(args: InteractiveArgs, _verbosity: Verbosity) -> Result<()> {
+pub fn interactive(args: InteractiveArgs, verbosity: Verbosity) -> Result<()> {
     print_info(format!(
         "Starting interactive debugger for: {:?}",
         args.contract
@@ -606,7 +606,7 @@ pub fn interactive(args: InteractiveArgs, _verbosity: Verbosity) -> Result<()> {
         wasm_bytes.len()
     ));
 
-    if _verbosity == Verbosity::Verbose {
+    if verbosity == Verbosity::Verbose {
         print_verbose(format!("SHA-256: {}", wasm_hash));
         if args.expected_hash.is_some() {
             print_verbose("Checksum verified ✓");
@@ -679,7 +679,7 @@ pub fn tui(args: TuiArgs, _verbosity: Verbosity) -> Result<()> {
 
 /// Execute the inspect command.
 #[tracing::instrument(skip_all, fields(contract = ?args.contract))]
-pub fn inspect(args: InspectArgs, _verbosity: Verbosity) -> Result<()> {
+pub fn inspect(args: InspectArgs, verbosity: Verbosity) -> Result<()> {
     print_info(format!("Inspecting contract: {:?}", args.contract));
     logging::log_loading_contract(&args.contract.to_string_lossy());
 
@@ -698,7 +698,7 @@ pub fn inspect(args: InspectArgs, _verbosity: Verbosity) -> Result<()> {
         }
     }
 
-    if _verbosity == Verbosity::Verbose {
+    if verbosity == Verbosity::Verbose {
         print_verbose(format!("SHA-256: {}", wasm_hash));
         if args.expected_hash.is_some() {
             print_verbose("Checksum verified ✓");
