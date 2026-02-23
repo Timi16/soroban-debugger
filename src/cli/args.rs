@@ -34,18 +34,12 @@ pub enum Verbosity {
     Verbose,
 }
 
+/// CLI output format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
 pub enum OutputFormat {
     #[default]
     Pretty,
     Json,
-}
-
-/// Format for dependency graph output.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum GraphFormat {
-    Dot,
-    Mermaid,
 }
 
 impl Verbosity {
@@ -427,9 +421,9 @@ pub struct InspectArgs {
     #[arg(long)]
     pub expected_hash: Option<String>,
 
-    /// Show cross-contract dependency graph in specified format
-    #[arg(long, value_enum)]
-    pub dependency_graph: Option<GraphFormat>,
+    /// Show cross-contract dependency graph in DOT and Mermaid formats
+    #[arg(long)]
+    pub dependency_graph: bool,
 }
 
 #[derive(Parser)]

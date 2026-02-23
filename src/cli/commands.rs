@@ -1,6 +1,6 @@
 use crate::cli::args::{
-    AnalyzeArgs, CompareArgs, GraphFormat, InspectArgs, InteractiveArgs, OptimizeArgs, ProfileArgs,
-    RemoteArgs, ReplArgs, ReplayArgs, RunArgs, ScenarioArgs, ServerArgs, SymbolicArgs, TuiArgs,
+    AnalyzeArgs, CompareArgs, InspectArgs, InteractiveArgs, OptimizeArgs, ProfileArgs, RemoteArgs,
+    ReplArgs, ReplayArgs, RunArgs, ScenarioArgs, ServerArgs, SymbolicArgs, TuiArgs,
     UpgradeCheckArgs, Verbosity,
 };
 use crate::debugger::engine::DebuggerEngine;
@@ -788,7 +788,7 @@ pub fn inspect(args: InspectArgs, _verbosity: Verbosity) -> Result<()> {
         }
     }
 
-    if let Some(format) = args.dependency_graph {
+    if args.dependency_graph {
         logging::log_display(
             format!("\n{}", OutputConfig::rule_line(54)),
             logging::LogLevel::Info,
@@ -819,16 +819,10 @@ pub fn inspect(args: InspectArgs, _verbosity: Verbosity) -> Result<()> {
                 graph.add_edge(contract_name.clone(), call.target);
             }
 
-            match format {
-                GraphFormat::Dot => {
-                    logging::log_display("\nDOT:", logging::LogLevel::Info);
-                    logging::log_display(graph.to_dot(), logging::LogLevel::Info);
-                }
-                GraphFormat::Mermaid => {
-                    logging::log_display("\nMermaid:", logging::LogLevel::Info);
-                    logging::log_display(graph.to_mermaid(), logging::LogLevel::Info);
-                }
-            }
+            logging::log_display("\nDOT:", logging::LogLevel::Info);
+            logging::log_display(graph.to_dot(), logging::LogLevel::Info);
+            logging::log_display("\nMermaid:", logging::LogLevel::Info);
+            logging::log_display(graph.to_mermaid(), logging::LogLevel::Info);
         }
     }
 
