@@ -31,14 +31,9 @@ pub struct StorageSnapshot {
 use crate::debugger::error_db::ErrorDatabase;
 
 /// Executes Soroban contracts in a test environment.
-pub struct ContractExecutor {
-    env: Env,
-    contract_address: Address,
-    last_execution: Option<ExecutionRecord>,
-    mock_registry: Arc<Mutex<MockRegistry>>,
-    wasm_bytes: Vec<u8>,
     timeout_secs: u64,
     error_db: ErrorDatabase,
+    storage_inspector: crate::inspector::storage::StorageInspector,
 }
 
 impl ContractExecutor {
@@ -93,6 +88,7 @@ impl ContractExecutor {
             wasm_bytes: wasm,
             timeout_secs: 30,
             error_db,
+            storage_inspector: crate::inspector::storage::StorageInspector::new(),
         })
     }
 
@@ -261,6 +257,11 @@ impl ContractExecutor {
         // Display budget usage and warnings
         crate::inspector::BudgetInspector::display(self.env.host());
 
+        // Update storage access patterns from diagnostic events
+        if let Ok(diagnostic_events) = self.get_diagnostic_events() {
+            self.storage_inspector.track_from_diagnostic_events(diagnostic_events);
+        }
+
         self.last_execution = Some(ExecutionRecord {
             function: function.to_string(),
             args: sc_args,
@@ -303,6 +304,11 @@ impl ContractExecutor {
     /// Get the host instance.
     pub fn host(&self) -> &Host {
         self.env.host()
+    }
+
+    /// Get the storage inspector.
+    pub fn storage_inspector(&self) -> &crate::inspector::storage::StorageInspector {
+        &self.storage_inspector
     }
 
     /// Get the authorization tree from the environment.

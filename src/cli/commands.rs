@@ -273,6 +273,11 @@ pub fn run(args: RunArgs, verbosity: Verbosity) -> Result<()> {
         crate::inspector::storage::StorageInspector::display_diff(&storage_diff);
     }
 
+    // Storage access pattern analysis
+    if !args.json {
+        engine.executor().storage_inspector().display_access_report();
+    }
+
     if let Some(export_path) = &args.export_storage {
         print_info(format!("\nExporting storage to: {:?}", export_path));
         crate::inspector::storage::StorageState::export_to_file(&storage_after, export_path)?;
@@ -453,6 +458,8 @@ pub fn run(args: RunArgs, verbosity: Verbosity) -> Result<()> {
         if let Some(ref ledger) = json_ledger {
             output["ledger_entries"] = ledger.to_json();
         }
+
+        output["storage_access"] = engine.executor().storage_inspector().analyze_access_patterns().to_json();
 
         logging::log_display(
             serde_json::to_string_pretty(&output).map_err(|e| {

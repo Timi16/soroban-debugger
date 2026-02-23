@@ -261,11 +261,45 @@ impl StorageInspector {
         }
 
         AccessPatternReport {
-            stats,
+            stats: stats.clone(),
             hot_read_keys,
             write_heavy_keys,
             read_never_written,
         }
+    }
+
+    /// Record access patterns from host diagnostic events
+    pub fn track_from_diagnostic_events(&mut self, events: Vec<soroban_env_host::xdr::ContractEvent>) {
+        for event in events {
+            let event_str = format!("{:?}", event);
+            // Look for storage-related diagnostic events
+            // Note: actual event structure depends on host implementation
+            if event_str.contains("storage") || event_str.contains("ContractData") {
+                if event_str.contains("read") || event_str.contains("Get") {
+                    // Try to extract key from event data or topics
+                    // For now, we'll use a simplified heuristic to find the key
+                    if let Some(key) = self.extract_key_from_event(&event_str) {
+                        self.track_read(&key);
+                    }
+                } else if event_str.contains("write") || event_str.contains("Put") || event_str.contains("Set") {
+                    if let Some(key) = self.extract_key_from_event(&event_str) {
+                        self.track_write(&key);
+                    }
+                }
+            }
+        }
+    }
+
+    fn extract_key_from_event(&self, event_debug: &str) -> Option<String> {
+        // Very simplified extraction for now - would need real XDR parsing for production
+        // Look for string-like patterns in the debug output
+        if let Some(start) = event_debug.find("key: ") {
+            let sub = &event_debug[start + 5..];
+            if let Some(end) = sub.find(',') {
+                return Some(sub[..end].trim_matches('"').to_string());
+            }
+        }
+        None
     }
 
     /// Display visually sorted table of access patterns
@@ -501,19 +535,26 @@ impl StorageDiff {
 }
 
 /// Statistics for a single storage access key
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AccessStats {
     pub reads: usize,
     pub writes: usize,
 }
 
 /// Report containing an analysis of storage access patterns
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AccessPatternReport {
     pub stats: HashMap<String, AccessStats>,
     pub hot_read_keys: Vec<String>,
     pub write_heavy_keys: Vec<String>,
     pub read_never_written: Vec<String>,
+}
+
+impl AccessPatternReport {
+    /// Convert the report to a JSON value
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    }
 }
 
 impl Default for StorageInspector {
@@ -840,5 +881,45 @@ mod tests {
         inspector.track_read("user:bob:balance");
 
         inspector.display_access_report();
+    }
+
+    #[test]
+    fn test_access_pattern_analysis_integration() {
+        let mut inspector = StorageInspector::new();
+        
+        // Simulating a contract that:
+        // 1. Reads a "config" key 10 times (Hot read)
+        // 2. Reads and writes "balance" 2 times (Active usage)
+        // 3. Reads "constants" 3 times (Read-only)
+        // 4. Writes "logs" 5 times (Write-heavy)
+        
+        for _ in 0..10 { inspector.track_read("config"); }
+        
+        inspector.track_read("balance");
+        inspector.track_write("balance");
+        inspector.track_read("balance");
+        inspector.track_write("balance");
+        
+        for _ in 0..3 { inspector.track_read("constants"); }
+        
+        for _ in 0..5 { inspector.track_write("logs"); }
+        
+        let report = inspector.analyze_access_patterns();
+        
+        // Check hot keys
+        assert!(report.hot_read_keys.contains(&"config".to_string()));
+        
+        // Check read-only keys
+        assert!(report.read_never_written.contains(&"config".to_string()));
+        assert!(report.read_never_written.contains(&"constants".to_string()));
+        assert!(!report.read_never_written.contains(&"balance".to_string()));
+        
+        // Check write-heavy keys
+        assert!(report.write_heavy_keys.contains(&"logs".to_string()));
+        
+        // Verify stats
+        let balance_stats = report.stats.get("balance").unwrap();
+        assert_eq!(balance_stats.reads, 2);
+        assert_eq!(balance_stats.writes, 2);
     }
 }
