@@ -74,7 +74,7 @@ impl DependencyGraph {
     }
 
     pub fn to_mermaid(&self) -> String {
-        let mut out = String::from("graph LR\n");
+        let mut out = String::from("flowchart TD\n");
 
         for edge in &self.edges {
             out.push_str(&format!(
@@ -108,7 +108,7 @@ mod tests {
         graph.add_edge("contract_a", "oracle_contract");
 
         let mermaid = graph.to_mermaid();
-        assert!(mermaid.starts_with("graph LR"));
+        assert!(mermaid.starts_with("flowchart TD"));
         assert!(mermaid.contains("\"contract_a\" --> \"oracle_contract\""));
     }
 }

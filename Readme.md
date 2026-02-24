@@ -762,3 +762,35 @@ docker run --rm -it -v "$(pwd):/contracts" ghcr.io/your-org/soroban-debug intera
 ```bash
 docker compose run --rm soroban-debug run --contract /contracts/token.wasm --function transfer
 ```
+
+
+
+## JSON Output Mode
+
+Use structured JSON output for automation/CI with the `run` command:
+
+```bash
+soroban-debug run --contract <path/to/contract.wasm> --function <fn> --output json
+```
+
+Example output:
+
+```json
+{
+  "status": "success",
+  "result": {
+    "value": "42"
+  },
+  "budget": {
+    "cpu_instructions": 1200,
+    "memory_bytes": 2048
+  },
+  "errors": null
+}
+```
+
+Default output mode remains pretty, human-readable output:
+
+```bash
+soroban-debug run --contract <path/to/contract.wasm> --function <fn>
+```

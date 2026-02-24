@@ -452,3 +452,39 @@ impl MemorySummary {
         serde_json::to_string_pretty(self)
     }
 }
+
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+
+    #[test]
+    fn memory_tracker_tracks_count_peak_and_total() {
+        let mut tracker = MemoryTracker::new(100);
+
+        tracker.record_memory_change(100, 180, "alloc:a");
+        tracker.record_memory_change(180, 240, "alloc:b");
+        tracker.record_memory_change(240, 220, "free-ish");
+        tracker.record_memory_change(220, 260, "alloc:c");
+
+        assert_eq!(tracker.allocation_count(), 3);
+        assert_eq!(tracker.total_allocated_bytes(), 80 + 60 + 40);
+        assert_eq!(tracker.peak_memory(), 260);
+    }
+
+    #[test]
+    fn memory_tracker_returns_top_five_largest_allocations_sorted() {
+        let mut tracker = MemoryTracker::new(0);
+        let mut current = 0;
+        let sizes = [10_u64, 80, 30, 50, 20, 70, 40];
+
+        for (idx, size) in sizes.iter().enumerate() {
+            let previous = current;
+            current += size;
+            tracker.record_memory_change(previous, current, &format!("alloc:{idx}"));
+        }
+
+        let top = tracker.get_top_allocations(5);
+        let top_sizes: Vec<u64> = top.into_iter().map(|a| a.size).collect();
+        assert_eq!(top_sizes, vec![80, 70, 50, 40, 30]);
+    }
+}

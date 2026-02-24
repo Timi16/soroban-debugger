@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 /// Represents a single frame in the call stack
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CallFrame {
     pub function: String,
     pub contract_id: Option<String>,
@@ -9,7 +9,7 @@ pub struct CallFrame {
 }
 
 /// Tracks and displays the call stack
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct CallStackInspector {
     stack: Vec<CallFrame>,
 }

@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 pub mod analyzer;
 pub mod batch;
 pub mod cli;
@@ -12,6 +14,7 @@ pub mod logging;
 pub mod output;
 pub mod plugin;
 pub mod profiler;
+pub mod protocol;
 pub mod repeat;
 pub mod repl;
 pub mod runtime;
@@ -20,6 +23,7 @@ pub mod server;
 pub mod simulator;
 pub mod ui;
 pub mod utils;
+
 use miette::Diagnostic;
 
 pub use debugger::engine::DebuggerEngine;

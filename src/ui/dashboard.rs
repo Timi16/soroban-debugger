@@ -1,3 +1,14 @@
+//! Interactive TUI Dashboard for Soroban contract debugging.
+//!
+//! This module provides a full-screen terminal UI built with ratatui that displays:
+//! - Call stack information with function names and context
+//! - Storage state with key-value pairs
+//! - Real-time CPU and memory budget meters with history
+//! - Execution log with timestamped events
+//!
+//! The dashboard supports keyboard navigation between panes (Tab, arrow keys) and
+//! debugger control actions (step, continue, refresh).
+
 use crate::debugger::engine::DebuggerEngine;
 use crate::inspector::budget::BudgetInfo;
 use crate::inspector::stack::CallFrame;
@@ -126,36 +137,30 @@ enum LogLevel {
     Step,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 enum StatusKind {
     Info,
-    Success,
-    Warning,
     Error,
 }
 
 impl DashboardApp {
     pub fn new(engine: DebuggerEngine, function_name: String) -> Self {
-        let mut storage_scroll_state = ScrollbarState::default();
-        storage_scroll_state = storage_scroll_state.content_length(0);
-        let mut log_scroll_state = ScrollbarState::default();
-        log_scroll_state = log_scroll_state.content_length(0);
-
-        let mut storage_state = ListState::default();
-        storage_state.select(Some(0));
-
-        let mut call_stack_state = ListState::default();
-        call_stack_state.select(Some(0));
-
         let mut app = Self {
             engine,
             active_pane: ActivePane::CallStack,
             call_stack_frames: Vec::new(),
-            call_stack_state,
+            call_stack_state: {
+                let mut state = ListState::default();
+                state.select(Some(0));
+                state
+            },
             storage_entries: Vec::new(),
-            storage_state,
-            storage_scroll_state,
+            storage_state: {
+                let mut state = ListState::default();
+                state.select(Some(0));
+                state
+            },
+            storage_scroll_state: ScrollbarState::default().content_length(0),
             budget_info: BudgetInfo {
                 cpu_instructions: 0,
                 cpu_limit: 100_000_000,
@@ -166,7 +171,7 @@ impl DashboardApp {
             budget_history_mem: VecDeque::with_capacity(60),
             log_entries: Vec::new(),
             log_scroll: 0,
-            log_scroll_state,
+            log_scroll_state: ScrollbarState::default().content_length(0),
             last_refresh: Instant::now(),
             step_count: 0,
             function_name,
@@ -180,7 +185,7 @@ impl DashboardApp {
         );
         app.push_log(
             LogLevel::Info,
-            format!("Contract function: {}", app.function_name.clone()),
+            format!("Contract function: {}", app.function_name),
         );
 
         app.refresh_state();
@@ -190,27 +195,20 @@ impl DashboardApp {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     fn push_log(&mut self, level: LogLevel, message: String) {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default();
-        let secs = now.as_secs();
-        let hours = (secs % 86400) / 3600;
-        let mins = (secs % 3600) / 60;
-        let s = secs % 60;
-        let timestamp = format!("{:02}:{:02}:{:02}", hours, mins, s);
+        let timestamp = format_timestamp();
         self.log_entries.push(LogEntry {
             timestamp,
             level,
             message,
         });
-        // auto-scroll to bottom
+
+        // Auto-scroll to bottom
         let len = self.log_entries.len();
-        if len > 0 {
-            self.log_scroll = len.saturating_sub(1);
-        }
-        let content_len = self.log_entries.len();
-        self.log_scroll_state = self.log_scroll_state.content_length(content_len);
-        self.log_scroll_state = self.log_scroll_state.position(self.log_scroll);
+        self.log_scroll = len.saturating_sub(1);
+        self.log_scroll_state = self
+            .log_scroll_state
+            .content_length(len)
+            .position(self.log_scroll);
     }
 
     fn refresh_state(&mut self) {
@@ -358,6 +356,16 @@ impl DashboardApp {
 }
 
 // ─── Main run loop ─────────────────────────────────────────────────────────
+
+/// Launches the interactive TUI dashboard for contract debugging.
+///
+/// # Arguments
+/// * `engine` - The debugger engine instance with contract state
+/// * `function_name` - The name of the contract function being debugged
+///
+/// # Returns
+/// Returns `Ok(())` on successful exit (via 'q' or Ctrl+C),
+/// or a `DebuggerError` if terminal setup/teardown fails.
 pub fn run_dashboard(engine: DebuggerEngine, function_name: &str) -> Result<()> {
     use crate::DebuggerError;
     // Setup terminal
@@ -949,8 +957,6 @@ fn render_status_bar(f: &mut Frame, app: &DashboardApp, area: Rect) {
     let (msg, msg_color) = if let Some((ref s, kind)) = app.status_message {
         let c = match kind {
             StatusKind::Info => COLOR_ACCENT,
-            StatusKind::Success => COLOR_GREEN,
-            StatusKind::Warning => COLOR_YELLOW,
             StatusKind::Error => COLOR_RED,
         };
         (s.as_str(), c)
@@ -1106,6 +1112,17 @@ fn pane_block(title: &str, num: &str, is_active: bool) -> Block<'static> {
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────
+fn format_timestamp() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = now.as_secs();
+    let hours = (secs % 86400) / 3600;
+    let mins = (secs % 3600) / 60;
+    let s = secs % 60;
+    format!("{:02}:{:02}:{:02}", hours, mins, s)
+}
+
 fn gauge_color(pct: f64) -> Color {
     if pct >= 90.0 {
         COLOR_RED

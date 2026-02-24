@@ -4,25 +4,25 @@
 .SH NAME
 upgrade\-check \- Check compatibility between two contract versions
 .SH SYNOPSIS
-\fBupgrade\-check\fR <\fB\-o\fR|\fB\-\-old\fR> <\fB\-n\fR|\fB\-\-new\fR> [\fB\-f\fR|\fB\-\-function\fR] [\fB\-a\fR|\fB\-\-args\fR] [\fB\-\-output\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBupgrade\-check\fR <\fB\-\-old\fR> <\fB\-\-new\fR> [\fB\-\-output\fR] [\fB\-\-output\-file\fR] [\fB\-\-test\-inputs\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Check compatibility between two contract versions
 .SH OPTIONS
 .TP
-\fB\-o\fR, \fB\-\-old\fR \fI<OLD>\fR
-Path to the old contract WASM file
+\fB\-\-old\fR \fI<OLD>\fR
+Path to the old (current) contract WASM file
 .TP
-\fB\-n\fR, \fB\-\-new\fR \fI<NEW>\fR
-Path to the new contract WASM file
+\fB\-\-new\fR \fI<NEW>\fR
+Path to the new (upgraded) contract WASM file
 .TP
-\fB\-f\fR, \fB\-\-function\fR \fI<FUNCTION>\fR
-Function name to test side\-by\-side (optional)
+\fB\-\-output\fR \fI<OUTPUT>\fR [default: text]
+Output format: text (default) or json
 .TP
-\fB\-a\fR, \fB\-\-args\fR \fI<ARGS>\fR
-Function arguments as JSON array for side\-by\-side test
+\fB\-\-output\-file\fR \fI<OUTPUT_FILE>\fR
+Write report to file instead of stdout
 .TP
-\fB\-\-output\fR \fI<OUTPUT>\fR
-Output file for the compatibility report (default: stdout)
+\fB\-\-test\-inputs\fR \fI<TEST_INPUTS>\fR
+Test inputs as JSON object mapping function names to argument arrays e.g. \*(Aq{"vote": [1, true], "create_proposal": ["title", "desc"]}\*(Aq
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

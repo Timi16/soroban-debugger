@@ -1,11 +1,17 @@
 use crate::{DebuggerError, Result};
+use serde::{Deserialize, Serialize};
 use soroban_env_host::{xdr::ContractEventBody, Host};
 
 /// Represents a captured contract event
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContractEvent {
+    /// Contract id that emitted the event (if present)
     pub contract_id: Option<String>,
+
+    /// Event topics (ordered)
     pub topics: Vec<String>,
+
+    /// Event data/payload (stringified)
     pub data: String,
 }
 
@@ -49,13 +55,56 @@ impl EventInspector {
         Ok(contract_events)
     }
 
-    /// Filter events by a topic string
+    /// Filter events by topic substring. If `topic_filter` is empty,
+    /// returns a clone of input slice.
     pub fn filter_events(events: &[ContractEvent], topic_filter: &str) -> Vec<ContractEvent> {
+        if topic_filter.is_empty() {
+            return events.to_vec();
+        }
+        let topic_filter = topic_filter.to_lowercase();
         events
             .iter()
-            .filter(|e| e.topics.iter().any(|t| t.contains(topic_filter)))
+            .filter(|e| {
+                // match if any topic contains the filter substring (case-insensitive)
+                e.topics
+                    .iter()
+                    .any(|t| t.to_lowercase().contains(&topic_filter))
+                    // or event data contains the filter (useful)
+                    || e.data.to_lowercase().contains(&topic_filter)
+            })
             .cloned()
             .collect()
+    }
+
+    /// Pretty-print events to stdout (via provided closure that will typically call logging/Formatter).
+    /// Here we return a Vec<String> of formatted lines to let the caller decide how to print/log them.
+    pub fn format_events(events: &[ContractEvent]) -> Vec<String> {
+        let mut out = Vec::new();
+        for (i, ev) in events.iter().enumerate() {
+            out.push(format!("Event #{}:", i));
+            out.push(format!(
+                "  Contract: {}",
+                ev.contract_id.as_deref().unwrap_or("<none>")
+            ));
+            out.push(format!("  Topics: {:?}", ev.topics));
+            out.push(format!("  Data: {}", ev.data));
+        }
+        out
+    }
+
+    /// Convert events into a serde_json::Value array for inclusion in JSON outputs.
+    pub fn to_json_value(events: &[ContractEvent]) -> serde_json::Value {
+        let arr: Vec<serde_json::Value> = events
+            .iter()
+            .map(|e| {
+                serde_json::json!({
+                    "contract_id": e.contract_id,
+                    "topics": e.topics,
+                    "data": e.data,
+                })
+            })
+            .collect();
+        serde_json::Value::Array(arr)
     }
 }
 

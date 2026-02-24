@@ -126,5 +126,34 @@ fn test_fixture_inspect_command() {
     // Should succeed and show functions
     cmd.assert()
         .success()
-        .stdout(predicates::str::contains("Exported Functions"));
+        .stdout(predicates::str::contains("Exported functions"));
+}
+
+#[test]
+fn test_fixture_registration_and_invocation() {
+    use soroban_sdk::{Env, Symbol};
+
+    let fixture_path = get_fixture_path("counter");
+    if !fixture_path.exists() {
+        return;
+    }
+
+    let wasm_bytes = fs::read(fixture_path).unwrap();
+    let env = Env::default();
+    let contract_id = env.register(&*wasm_bytes, ());
+
+    // Call increment
+    let first: i64 = env.invoke_contract(
+        &contract_id,
+        &Symbol::new(&env, "increment"),
+        soroban_sdk::vec![&env],
+    );
+    assert_eq!(first, 1);
+
+    let second: i64 = env.invoke_contract(
+        &contract_id,
+        &Symbol::new(&env, "increment"),
+        soroban_sdk::vec![&env],
+    );
+    assert_eq!(second, 2);
 }

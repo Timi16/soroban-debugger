@@ -1,15 +1,18 @@
 use crate::debugger::instruction_pointer::{InstructionPointer, StepMode};
 use crate::inspector::stack::CallStackInspector;
 use crate::runtime::instruction::Instruction;
+use serde::{Deserialize, Serialize};
 
 /// Represents the current state of the debugger.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DebugState {
     current_function: Option<String>,
     current_args: Option<String>,
     step_count: usize,
     instruction_pointer: InstructionPointer,
+    #[serde(skip)]
     current_instruction: Option<Instruction>,
+    #[serde(skip)]
     instructions: Vec<Instruction>,
     instruction_debug_enabled: bool,
     call_stack: CallStackInspector,

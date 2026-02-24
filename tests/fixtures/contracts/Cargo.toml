@@ -2,7 +2,7 @@
 members = [
     "counter",
     "echo",
-    "panic",
+    "always_panic",
     "budget_heavy",
     "cross_contract",
 ]

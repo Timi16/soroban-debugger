@@ -21,8 +21,12 @@ Show contract metadata
 \fB\-\-expected\-hash\fR \fI<EXPECTED_HASH>\fR
 Expected SHA\-256 hash of the WASM file. If provided, loading will fail if the computed hash does not match
 .TP
-\fB\-\-dependency\-graph\fR
-Show cross\-contract dependency graph in DOT and Mermaid formats
+\fB\-\-dependency\-graph\fR \fI<DEPENDENCY_GRAPH>\fR
+Show cross\-contract dependency graph in specified format
+.br
+
+.br
+[\fIpossible values: \fRdot, mermaid]
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

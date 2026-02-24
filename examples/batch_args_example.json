@@ -1,0 +1,5 @@
+[
+  [1, 2],
+  { "args": [5, 10], "label": "with expected", "expected": "15" },
+  { "args": [100, -1], "label": "negative delta" }
+]

@@ -18,7 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 
 - CLI flag `--wasm` and `--contract-path` are deprecated in favor of `--contract`
+  - Deprecation warnings are now shown in yellow when these flags are used
+  - The flags will continue to work but users should migrate to `--contract`
 - CLI flag `--snapshot` is deprecated in favor of `--network-snapshot`
+  - Deprecation warnings are now shown in yellow when this flag is used
+  - The flag will continue to work but users should migrate to `--network-snapshot`
 
 ## [0.1.0] - 2026-02-19
 

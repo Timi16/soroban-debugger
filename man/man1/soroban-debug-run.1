@@ -4,7 +4,7 @@
 .SH NAME
 run \- Run a contract function with the debugger
 .SH SYNOPSIS
-\fBrun\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-b\fR|\fB\-\-breakpoint\fR] [\fB\-\-network\-snapshot\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-format\fR] [\fB\-\-output\fR] [\fB\-\-show\-events\fR] [\fB\-\-show\-auth\fR] [\fB\-\-json\fR] [\fB\-\-filter\-topic\fR] [\fB\-\-repeat\fR] [\fB\-\-mock\fR] [\fB\-\-storage\-filter\fR] [\fB\-\-instruction\-debug\fR] [\fB\-\-step\-instructions\fR] [\fB\-\-step\-mode\fR] [\fB\-\-dry\-run\fR] [\fB\-\-export\-storage\fR] [\fB\-\-import\-storage\fR] [\fB\-\-batch\-args\fR] [\fB\-\-generate\-test\fR] [\fB\-\-overwrite\fR] [\fB\-\-timeout\fR] [\fB\-\-alert\-on\-change\fR] [\fB\-\-expected\-hash\fR] [\fB\-\-show\-ledger\fR] [\fB\-\-ttl\-warning\-threshold\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBrun\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-b\fR|\fB\-\-breakpoint\fR] [\fB\-\-network\-snapshot\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-server\fR] [\fB\-\-port\fR] [\fB\-\-remote\fR] [\fB\-\-token\fR] [\fB\-\-tls\-cert\fR] [\fB\-\-tls\-key\fR] [\fB\-\-format\fR] [\fB\-\-output\fR] [\fB\-\-show\-events\fR] [\fB\-\-show\-auth\fR] [\fB\-\-json\fR] [\fB\-\-filter\-topic\fR] [\fB\-\-event\-filter\fR] [\fB\-\-repeat\fR] [\fB\-\-mock\fR] [\fB\-\-storage\-filter\fR] [\fB\-\-instruction\-debug\fR] [\fB\-\-step\-instructions\fR] [\fB\-\-step\-mode\fR] [\fB\-\-dry\-run\fR] [\fB\-\-export\-storage\fR] [\fB\-\-import\-storage\fR] [\fB\-\-batch\-args\fR] [\fB\-\-generate\-test\fR] [\fB\-\-overwrite\fR] [\fB\-\-timeout\fR] [\fB\-\-alert\-on\-change\fR] [\fB\-\-expected\-hash\fR] [\fB\-\-show\-ledger\fR] [\fB\-\-ttl\-warning\-threshold\fR] [\fB\-\-trace\-output\fR] [\fB\-\-save\-output\fR] [\fB\-\-append\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Run a contract function with the debugger
 .SH OPTIONS
@@ -30,6 +30,24 @@ Network snapshot file to load before execution
 \fB\-v\fR, \fB\-\-verbose\fR
 Enable verbose output
 .TP
+\fB\-\-server\fR
+Start in server mode
+.TP
+\fB\-\-port\fR \fI<PORT>\fR [default: 9229]
+Port to listen on or connect to
+.TP
+\fB\-\-remote\fR \fI<REMOTE>\fR
+Connect to a remote debugger (address:port)
+.TP
+\fB\-\-token\fR \fI<TOKEN>\fR
+Authentication token
+.TP
+\fB\-\-tls\-cert\fR \fI<TLS_CERT>\fR
+Path to TLS certificate file
+.TP
+\fB\-\-tls\-key\fR \fI<TLS_KEY>\fR
+Path to TLS key file
+.TP
 \fB\-\-format\fR \fI<FORMAT>\fR
 Output format (text, json)
 .TP
@@ -50,7 +68,10 @@ Show authorization tree during execution
 Output format as JSON
 .TP
 \fB\-\-filter\-topic\fR \fI<FILTER_TOPIC>\fR
-Filter events by topic
+Filter events by topic (deprecated single value). Prefer using \-\-event\-filter (repeatable)
+.TP
+\fB\-\-event\-filter\fR \fI<PATTERN>\fR
+Filter events by topic pattern (repeatable)
 .TP
 \fB\-\-repeat\fR \fI<REPEAT>\fR
 Execute the contract call N times for stress testing
@@ -102,6 +123,15 @@ Show ledger entries accessed during execution
 .TP
 \fB\-\-ttl\-warning\-threshold\fR \fI<TTL_WARNING_THRESHOLD>\fR [default: 1000]
 TTL warning threshold in ledger sequence numbers (default: 1000)
+.TP
+\fB\-\-trace\-output\fR \fI<TRACE_OUTPUT>\fR
+Export execution trace to JSON file
+.TP
+\fB\-\-save\-output\fR \fI<FILE>\fR
+Path to file where execution results should be saved
+.TP
+\fB\-\-append\fR
+Append to output file instead of overwriting (used with \-\-save\-output)
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

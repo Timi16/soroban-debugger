@@ -1,9 +1,81 @@
 use crate::runtime::instruction::{Instruction, InstructionParser};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use walrus::{FunctionId, Module, ModuleConfig};
 
 /// Callback function type for instruction hooks
 pub type InstructionHook = Arc<dyn Fn(usize, &Instruction) -> bool + Send + Sync>;
+
+/// Instruction counter for tracking per-function execution
+#[derive(Debug, Clone)]
+pub struct InstructionCounter {
+    /// Map of function name to instruction count
+    pub counts: Arc<Mutex<HashMap<String, u64>>>,
+    /// Total instructions executed
+    pub total: Arc<Mutex<u64>>,
+}
+
+impl InstructionCounter {
+    /// Create a new instruction counter
+    pub fn new() -> Self {
+        Self {
+            counts: Arc::new(Mutex::new(HashMap::new())),
+            total: Arc::new(Mutex::new(0)),
+        }
+    }
+
+    /// Increment count for a function
+    pub fn increment(&self, function_name: &str, count: u64) {
+        if let Ok(mut counts) = self.counts.lock() {
+            *counts.entry(function_name.to_string()).or_insert(0) += count;
+        }
+        if let Ok(mut total) = self.total.lock() {
+            *total += count;
+        }
+    }
+
+    /// Get count for a specific function
+    pub fn get(&self, function_name: &str) -> u64 {
+        self.counts
+            .lock()
+            .ok()
+            .and_then(|c| c.get(function_name).copied())
+            .unwrap_or(0)
+    }
+
+    /// Get total instruction count
+    pub fn get_total(&self) -> u64 {
+        self.total.lock().ok().map(|t| *t).unwrap_or(0)
+    }
+
+    /// Get all counts as a sorted vector (highest first)
+    pub fn get_sorted(&self) -> Vec<(String, u64)> {
+        let mut counts = self
+            .counts
+            .lock()
+            .ok()
+            .map(|c| c.iter().map(|(k, v)| (k.clone(), *v)).collect::<Vec<_>>())
+            .unwrap_or_default();
+        counts.sort_by(|a, b| b.1.cmp(&a.1));
+        counts
+    }
+
+    /// Clear all counts
+    pub fn reset(&self) {
+        if let Ok(mut counts) = self.counts.lock() {
+            counts.clear();
+        }
+        if let Ok(mut total) = self.total.lock() {
+            *total = 0;
+        }
+    }
+}
+
+impl Default for InstructionCounter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// WASM instrumentation for adding debug hooks
 pub struct Instrumenter {
@@ -13,6 +85,8 @@ pub struct Instrumenter {
     hook: Option<InstructionHook>,
     /// Parsed instructions for reference
     instructions: Vec<Instruction>,
+    /// Instruction counter
+    pub counter: InstructionCounter,
 }
 
 impl Instrumenter {
@@ -22,6 +96,7 @@ impl Instrumenter {
             enabled: false,
             hook: None,
             instructions: Vec::new(),
+            counter: InstructionCounter::new(),
         }
     }
 

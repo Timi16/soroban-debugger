@@ -4,7 +4,7 @@ use crate::runtime::instruction::Instruction;
 use std::collections::VecDeque;
 
 /// Step mode for instruction-level debugging
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StepMode {
     /// Step to the next instruction (step into calls)
     StepInto,
@@ -17,7 +17,7 @@ pub enum StepMode {
 }
 
 /// Instruction pointer state
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InstructionPointer {
     /// Current instruction index in the instruction list
     current_index: usize,

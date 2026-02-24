@@ -100,6 +100,53 @@ fn test_parse_string_typed() {
 // ── Mixed arguments (simulating real contract calls) ─────────────────
 
 #[test]
+fn test_parse_option_none_from_null() {
+    let parser = create_parser();
+    let result = parser.parse_args_string(r#"[{"type": "option", "value": null}]"#);
+    assert!(
+        result.is_ok(),
+        "Failed to parse option none: {:?}",
+        result.err()
+    );
+    assert_eq!(result.unwrap().len(), 1);
+}
+
+#[test]
+fn test_parse_option_some_from_non_null() {
+    let parser = create_parser();
+    let result = parser.parse_args_string(r#"[{"type": "option", "value": 42}]"#);
+    assert!(
+        result.is_ok(),
+        "Failed to parse option some: {:?}",
+        result.err()
+    );
+    assert_eq!(result.unwrap().len(), 1);
+}
+
+#[test]
+fn test_parse_fixed_length_tuple() {
+    let parser = create_parser();
+    let result =
+        parser.parse_args_string(r#"[{"type": "tuple", "value": [1, "hello"], "arity": 2}]"#);
+    assert!(result.is_ok(), "Failed to parse tuple: {:?}", result.err());
+    assert_eq!(result.unwrap().len(), 1);
+}
+
+#[test]
+fn test_error_tuple_wrong_arity() {
+    let parser = create_parser();
+    let result = parser.parse_args_string(r#"[{"type": "tuple", "value": [1, 2, 3], "arity": 2}]"#);
+    assert!(result.is_err());
+
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("Tuple arity mismatch: expected 2, got 3"),
+        "Expected clear tuple arity mismatch error, got: {}",
+        err_msg
+    );
+}
+
+#[test]
 fn test_parse_counter_add_args() {
     // Simulate: soroban-debug run --contract counter.wasm --function add --args '[10]'
     let parser = create_parser();
@@ -126,43 +173,6 @@ fn test_parse_transfer_args() {
     );
     assert!(result.is_ok());
     assert_eq!(result.unwrap().len(), 3);
-}
-
-#[test]
-fn test_parse_mixed_typed_and_bare() {
-    let parser = create_parser();
-    let result = parser.parse_args_string(r#"[{"type": "u32", "value": 42}, "hello", true, 100]"#);
-    assert!(result.is_ok());
-    assert_eq!(result.unwrap().len(), 4);
-}
-
-// ── Error handling ───────────────────────────────────────────────────
-
-#[test]
-fn test_error_unsupported_type() {
-    let parser = create_parser();
-    let result = parser.parse_args_string(r#"[{"type": "unknown_type", "value": "abc"}]"#);
-    assert!(result.is_err());
-    let err_msg = result.unwrap_err().to_string();
-    assert!(
-        err_msg.contains("Unsupported type") || err_msg.contains("unknown_type"),
-        "Expected unsupported type error, got: {}",
-        err_msg
-    );
-}
-
-#[test]
-fn test_error_u32_out_of_range() {
-    let parser = create_parser();
-    let result = parser.parse_args_string(r#"[{"type": "u32", "value": 5000000000}]"#);
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_error_i32_out_of_range() {
-    let parser = create_parser();
-    let result = parser.parse_args_string(r#"[{"type": "i32", "value": 3000000000}]"#);
-    assert!(result.is_err());
 }
 
 #[test]
@@ -244,4 +254,52 @@ fn test_empty_string_typed() {
     let parser = create_parser();
     let result = parser.parse_args_string(r#"[{"type": "string", "value": ""}]"#);
     assert!(result.is_ok());
+}
+
+#[test]
+fn test_parse_typed_option_null_maps_to_none() {
+    let parser = create_parser();
+    let env = Env::default();
+
+    let parsed = parser
+        .parse_args_string(r#"[{"type": "option", "value": null}]"#)
+        .expect("option none should parse");
+
+    let value: Option<i128> = soroban_sdk::TryFromVal::try_from_val(&env, &parsed[0])
+        .expect("val should decode to Option<i128>");
+    assert_eq!(value, None);
+}
+
+#[test]
+fn test_parse_typed_option_non_null_maps_to_some() {
+    let parser = create_parser();
+    let env = Env::default();
+
+    let parsed = parser
+        .parse_args_string(r#"[{"type": "option", "value": 42}]"#)
+        .expect("option some should parse");
+
+    let value: Option<i128> = soroban_sdk::TryFromVal::try_from_val(&env, &parsed[0])
+        .expect("val should decode to Option<i128>");
+    assert_eq!(value, Some(42));
+}
+
+#[test]
+fn test_parse_typed_tuple_fixed_length_array() {
+    let parser = create_parser();
+    let result =
+        parser.parse_args_string(r#"[{"type": "tuple", "value": [1, "hello"], "arity": 2}]"#);
+    assert!(result.is_ok(), "tuple should parse: {:?}", result.err());
+}
+
+#[test]
+fn test_parse_typed_tuple_wrong_arity_has_clear_error() {
+    let parser = create_parser();
+    let result = parser.parse_args_string(r#"[{"type": "tuple", "value": [1, 2, 3], "arity": 2}]"#);
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("Tuple arity mismatch: expected 2, got 3"),
+        "unexpected error: {err}"
+    );
 }

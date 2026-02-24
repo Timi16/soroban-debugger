@@ -55,6 +55,8 @@ fn emit_build_metadata() {
     println!("cargo:rustc-env=GIT_HASH={}", git_hash);
     println!("cargo:rustc-env=RUSTC_VERSION={}", rustc_version);
     println!("cargo:rustc-env=BUILD_DATE={}", build_date);
+
+    println!("cargo:rerun-if-changed=.git/HEAD");
 }
 
 fn command_stdout(program: &str, args: &[&str]) -> Option<String> {

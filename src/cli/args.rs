@@ -4,6 +4,28 @@ use clap::{Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 use std::path::PathBuf;
 
+/// Mapping of deprecated CLI flags to their new equivalents
+/// Used to show deprecation warnings when old flags are used
+pub const DEPRECATED_FLAGS: &[(&str, &str)] = &[
+    ("--wasm", "--contract"),
+    ("--contract-path", "--contract"),
+    ("--snapshot", "--network-snapshot"),
+];
+
+/// Get a deprecation warning message for a deprecated flag
+/// Returns None if the flag is not deprecated
+pub fn get_deprecation_warning(deprecated_flag: &str) -> Option<String> {
+    DEPRECATED_FLAGS
+        .iter()
+        .find(|(old, _)| *old == deprecated_flag)
+        .map(|(old, new)| {
+            format!(
+                "⚠️  Flag '{}' is deprecated. Please use '{}' instead.",
+                old, new
+            )
+        })
+}
+
 /// Verbosity level for output control
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verbosity {
@@ -12,12 +34,18 @@ pub enum Verbosity {
     Verbose,
 }
 
-/// CLI output format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
 pub enum OutputFormat {
     #[default]
     Pretty,
     Json,
+}
+
+/// Format for dependency graph output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum GraphFormat {
+    Dot,
+    Mermaid,
 }
 
 impl Verbosity {
@@ -102,15 +130,17 @@ pub enum Commands {
     /// Inspect contract information without executing
     Inspect(InspectArgs),
 
+    /// Check compatibility between two contract versions
+    UpgradeCheck(UpgradeCheckArgs),
+
     /// Generate shell completion scripts
     Completions(CompletionsArgs),
+
     /// Analyze contract and generate gas optimization suggestions
     Optimize(OptimizeArgs),
 
     /// Profile a single function execution and print hotspots + suggestions
     Profile(ProfileArgs),
-    /// Check compatibility between two contract versions
-    UpgradeCheck(UpgradeCheckArgs),
 
     /// Compare two execution trace JSON files side-by-side
     Compare(CompareArgs),
@@ -172,6 +202,29 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub verbose: bool,
 
+    /// Start in server mode
+    #[arg(long)]
+    pub server: bool,
+
+    /// Port to listen on or connect to
+    #[arg(long, default_value = "9229")]
+    pub port: u16,
+
+    /// Connect to a remote debugger (address:port)
+    #[arg(long)]
+    pub remote: Option<String>,
+
+    /// Authentication token
+    #[arg(long)]
+    pub token: Option<String>,
+
+    /// Path to TLS certificate file
+    #[arg(long)]
+    pub tls_cert: Option<std::path::PathBuf>,
+
+    /// Path to TLS key file
+    #[arg(long)]
+    pub tls_key: Option<std::path::PathBuf>,
     /// Output format (text, json)
     #[arg(long)]
     pub format: Option<String>,
@@ -192,9 +245,13 @@ pub struct RunArgs {
     #[arg(long)]
     pub json: bool,
 
-    /// Filter events by topic
+    /// Filter events by topic (deprecated single value). Prefer using --event-filter (repeatable).
     #[arg(long)]
     pub filter_topic: Option<String>,
+
+    /// Filter events by topic pattern (repeatable)
+    #[arg(long, value_name = "PATTERN")]
+    pub event_filter: Vec<String>,
 
     /// Execute the contract call N times for stress testing
     #[arg(long)]
@@ -266,6 +323,17 @@ pub struct RunArgs {
     /// TTL warning threshold in ledger sequence numbers (default: 1000)
     #[arg(long, default_value = "1000")]
     pub ttl_warning_threshold: u32,
+
+    /// Export execution trace to JSON file
+    #[arg(long)]
+    pub trace_output: Option<PathBuf>,
+    /// Path to file where execution results should be saved
+    #[arg(long, value_name = "FILE")]
+    pub save_output: Option<PathBuf>,
+
+    /// Append to output file instead of overwriting (used with --save-output)
+    #[arg(long)]
+    pub append: bool,
 }
 
 impl RunArgs {
@@ -399,9 +467,33 @@ pub struct InspectArgs {
     #[arg(long)]
     pub expected_hash: Option<String>,
 
-    /// Show cross-contract dependency graph in DOT and Mermaid formats
+    /// Show cross-contract dependency graph in specified format
+    #[arg(long, value_enum)]
+    pub dependency_graph: Option<GraphFormat>,
+}
+
+#[derive(Parser)]
+pub struct UpgradeCheckArgs {
+    /// Path to the old (current) contract WASM file
     #[arg(long)]
-    pub dependency_graph: bool,
+    pub old: PathBuf,
+
+    /// Path to the new (upgraded) contract WASM file
+    #[arg(long)]
+    pub new: PathBuf,
+
+    /// Output format: text (default) or json
+    #[arg(long, default_value = "text")]
+    pub output: String,
+
+    /// Write report to file instead of stdout
+    #[arg(long)]
+    pub output_file: Option<PathBuf>,
+
+    /// Test inputs as JSON object mapping function names to argument arrays
+    /// e.g. '{"vote": [1, true], "create_proposal": ["title", "desc"]}'
+    #[arg(long)]
+    pub test_inputs: Option<String>,
 }
 
 #[derive(Parser)]
@@ -441,29 +533,6 @@ pub struct OptimizeArgs {
     /// Deprecated: use --network-snapshot instead
     #[arg(long, hide = true, alias = "snapshot")]
     pub snapshot: Option<PathBuf>,
-}
-
-#[derive(Parser)]
-pub struct UpgradeCheckArgs {
-    /// Path to the old contract WASM file
-    #[arg(short, long)]
-    pub old: PathBuf,
-
-    /// Path to the new contract WASM file
-    #[arg(short, long)]
-    pub new: PathBuf,
-
-    /// Function name to test side-by-side (optional)
-    #[arg(short, long)]
-    pub function: Option<String>,
-
-    /// Function arguments as JSON array for side-by-side test
-    #[arg(short, long)]
-    pub args: Option<String>,
-
-    /// Output file for the compatibility report (default: stdout)
-    #[arg(long)]
-    pub output: Option<PathBuf>,
 }
 
 #[cfg(test)]
@@ -702,6 +771,29 @@ pub struct RemoteArgs {
     /// Function arguments as JSON array
     #[arg(short, long)]
     pub args: Option<String>,
+}
+
+#[derive(Parser)]
+pub struct AnalyzeArgs {
+    /// Path to the contract WASM file
+    #[arg(short, long)]
+    pub contract: PathBuf,
+
+    /// Function name to execute for dynamic analysis (optional)
+    #[arg(short, long)]
+    pub function: Option<String>,
+
+    /// Function arguments as JSON array for dynamic analysis (optional)
+    #[arg(short, long)]
+    pub args: Option<String>,
+
+    /// Initial storage state as JSON object (optional)
+    #[arg(short, long)]
+    pub storage: Option<String>,
+
+    /// Output format (text, json)
+    #[arg(long, default_value = "text")]
+    pub format: String,
 }
 
 #[derive(Parser)]
