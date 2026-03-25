@@ -23,7 +23,7 @@ export class SorobanDebugAdapterDescriptorFactory
     session: vscode.DebugSession,
     executable: vscode.DebugAdapterExecutable | undefined
   ): Promise<DebugAdapterDescriptor | null> {
-    const debugSession = new SorobanDebugSession(this.logManager, (info) => {
+    const debugSession = new SorobanDebugSession(undefined, undefined, this.logManager, (info) => {
       this.sessionInfo.set(session.id, info);
       this.onSessionInfoEmitter.fire({ sessionId: session.id, info });
     });

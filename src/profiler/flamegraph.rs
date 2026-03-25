@@ -1,4 +1,6 @@
 use crate::profiler::analyzer::OptimizationReport;
+#[cfg(test)]
+use crate::profiler::analyzer::FunctionProfile;
 use crate::Result;
 use inferno::flamegraph::{from_reader, Options};
 

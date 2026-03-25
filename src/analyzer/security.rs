@@ -1321,10 +1321,11 @@ mod tests {
             sequence: seq,
             kind,
             message: String::new(),
+            caller: None,
             function: None,
             storage_key: None,
             storage_value: None,
-            call_depth: depth,
+            call_depth: Some(depth as usize),
         }
     }
 
@@ -1337,7 +1338,7 @@ mod tests {
             make_event(1, DynamicTraceEventKind::StorageWrite, 1),
         ];
         assert!(
-            analyze_reentrancy_dynamic(&trace).is_empty(),
+            analyze_reentrancy_pattern_dynamic(&trace).is_empty(),
             "write in callee frame must not be flagged as reentrancy"
         );
     }
@@ -1354,7 +1355,7 @@ mod tests {
             make_event(3, DynamicTraceEventKind::StorageWrite, 0),
         ];
         assert!(
-            analyze_reentrancy_dynamic(&trace).is_empty(),
+            analyze_reentrancy_pattern_dynamic(&trace).is_empty(),
             "write after call has returned must not be flagged"
         );
     }
@@ -1370,7 +1371,7 @@ mod tests {
             make_event(3, DynamicTraceEventKind::StorageWrite, 0),
         ];
         assert!(
-            analyze_reentrancy_dynamic(&trace).is_empty(),
+            analyze_reentrancy_pattern_dynamic(&trace).is_empty(),
             "write at depth 0 after explicit return must not be flagged"
         );
     }
@@ -1383,7 +1384,7 @@ mod tests {
             make_event(0, DynamicTraceEventKind::CrossContractCall, 0),
             make_event(1, DynamicTraceEventKind::StorageWrite, 0),
         ];
-        let findings = analyze_reentrancy_dynamic(&trace);
+        let findings = analyze_reentrancy_pattern_dynamic(&trace);
         assert_eq!(
             findings.len(),
             1,

@@ -52,10 +52,12 @@ export class SorobanDebugSession extends DebugSession {
   };
 
   constructor(
+    obsoleteDebuggerLinesAndColumnsStartAt1?: boolean,
+    obsoleteIsServer?: boolean,
     logManager?: LogManager,
     onSessionInfoUpdated?: (info: DebuggerSessionInfo) => void
   ) {
-    super();
+    super(obsoleteDebuggerLinesAndColumnsStartAt1, obsoleteIsServer);
     this.logManager = logManager;
     this.onSessionInfoUpdated = onSessionInfoUpdated;
   }
@@ -221,7 +223,7 @@ export class SorobanDebugSession extends DebugSession {
             line: match?.line ?? bp.line,
             column: bp.column,
             source: args.source,
-            message: [match?.message, syncMessage, capabilityMessages].filter(Boolean).join(' ')
+            message: match?.message
           };
         })
       };

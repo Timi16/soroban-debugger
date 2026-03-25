@@ -86,7 +86,7 @@ fn test_inspect_functions_with_json_format() {
         .output()
         .expect("Failed to execute command");
 
-    if output.status.is_err() {
+    if !output.status.success() {
         assert_eq!(output.status.code(), Some(1));
     }
 }

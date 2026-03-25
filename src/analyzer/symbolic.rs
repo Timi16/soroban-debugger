@@ -632,6 +632,7 @@ mod tests {
                 truncated_by_path_cap: false,
                 truncated_by_timeout: false,
                 truncation_reasons: Vec::new(),
+                seed: None,
             },
         };
         let mut seen_inputs = HashSet::new();
@@ -661,6 +662,7 @@ mod tests {
                 truncated_by_path_cap: false,
                 truncated_by_timeout: false,
                 truncation_reasons: Vec::new(),
+                seed: None,
             },
         };
         let mut seen_inputs = HashSet::new();
@@ -800,6 +802,7 @@ mod tests {
                 truncation_reasons: vec![
                     "input combination cap reached at 64 generated combinations".to_string(),
                 ],
+                seed: None,
             },
         };
 
