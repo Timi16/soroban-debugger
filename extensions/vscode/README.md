@@ -10,6 +10,7 @@ A Visual Studio Code extension that integrates the Soroban smart contract debugg
 - 🧵 **Thread Support**: Basic thread management for debugging sessions
 - 📝 **Detailed Logging**: Optional trace logging for debugging adapter interactions
 - ⚡ **Real-time Debugging**: Step through contract execution with next, step in, and step out
+- 🔢 **Session Version Info**: See active backend and protocol versions in the VS Code status bar during debugging
 
 ## Requirements
 
@@ -206,6 +207,14 @@ The extension consists of three main components:
 - TypeScript types for DAP events and commands
 - Debugger state management
 - Variable reference handling
+
+## Session Version Info
+
+During an active Soroban debug session, the status bar shows:
+
+`Soroban: v<backendVersion> | protocol <protocolVersion>`
+
+If the backend does not expose version fields, the extension displays `unknown` for the missing values.
 
 ## Troubleshooting
 

@@ -34,6 +34,11 @@ export interface DebuggerContinueResult {
   paused: boolean;
 }
 
+export interface DebuggerSessionInfo {
+  backendVersion: string;
+  protocolVersion: string;
+}
+
 type DebugRequest =
   | { type: 'Authenticate'; token: string }
   | { type: 'LoadContract'; contract_path: string }
@@ -63,7 +68,7 @@ type DebugResponse =
   | { type: 'BreakpointSet'; function: string }
   | { type: 'BreakpointCleared'; function: string }
   | { type: 'EvaluateResult'; result: string; result_type?: string; variables_reference: number }
-  | { type: 'Pong' }
+  | { type: 'Pong'; backend_version?: string; protocol_version?: string }
   | { type: 'Disconnected' }
   | { type: 'Error'; message: string };
 
@@ -86,6 +91,10 @@ export class DebuggerProcess {
   private pendingRequests = new Map<number, PendingRequest>();
   private config: DebuggerProcessConfig;
   private port: number | null = null;
+  private sessionInfo: DebuggerSessionInfo = {
+    backendVersion: 'unknown',
+    protocolVersion: 'unknown'
+  };
 
   constructor(config: DebuggerProcessConfig) {
     this.config = config;
@@ -142,6 +151,9 @@ export class DebuggerProcess {
       contract_path: this.config.contractPath
     });
     this.expectResponse(contractResponse, 'ContractLoaded');
+
+    // Best-effort metadata fetch; do not fail startup if unavailable.
+    await this.captureSessionInfo();
   }
 
   async execute(): Promise<DebuggerExecutionResult> {
@@ -221,6 +233,11 @@ export class DebuggerProcess {
   async ping(): Promise<void> {
     const response = await this.sendRequest({ type: 'Ping' });
     this.expectResponse(response, 'Pong');
+    this.sessionInfo = extractSessionInfoFromPong(response);
+  }
+
+  getSessionInfo(): DebuggerSessionInfo {
+    return { ...this.sessionInfo };
   }
 
   async setBreakpoint(functionName: string): Promise<void> {
@@ -489,6 +506,19 @@ export class DebuggerProcess {
     return response;
   }
 
+  private async captureSessionInfo(): Promise<void> {
+    try {
+      const response = await this.sendRequest({ type: 'Ping' });
+      this.expectResponse(response, 'Pong');
+      this.sessionInfo = extractSessionInfoFromPong(response);
+    } catch {
+      this.sessionInfo = {
+        backendVersion: 'unknown',
+        protocolVersion: 'unknown'
+      };
+    }
+  }
+
   private rejectPendingRequests(error: Error): void {
     for (const pending of this.pendingRequests.values()) {
       pending.reject(error);
@@ -504,4 +534,11 @@ export class DebuggerProcess {
       throw new Error(`Unexpected debugger response: expected ${type}, got ${response.type}`);
     }
   }
+}
+
+export function extractSessionInfoFromPong(response: Extract<DebugResponse, { type: 'Pong' }>): DebuggerSessionInfo {
+  return {
+    backendVersion: response.backend_version || 'unknown',
+    protocolVersion: response.protocol_version || 'unknown'
+  };
 }

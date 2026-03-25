@@ -5,7 +5,7 @@ import {
   ExitedEvent} from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import * as readline from 'readline';
-import { DebuggerProcess, DebuggerProcessConfig } from '../cli/debuggerProcess';
+import { DebuggerProcess, DebuggerProcessConfig, DebuggerSessionInfo } from '../cli/debuggerProcess';
 import { DebuggerState, Variable } from './protocol';
 import { ResolvedBreakpoint, resolveSourceBreakpoints } from './sourceBreakpoints';
 import { LogOutputEvent, LogLevel } from '@vscode/debugadapter/lib/logger';
@@ -29,6 +29,27 @@ export class SorobanDebugSession extends DebugSession {
   private exportedFunctions = new Set<string>();
   private sourceFunctionBreakpoints = new Map<string, Set<string>>();
   private functionBreakpointRefCounts = new Map<string, number>();
+  private sessionInfo: DebuggerSessionInfo = {
+    backendVersion: 'unknown',
+    protocolVersion: 'unknown'
+  };
+  private readonly onSessionInfoUpdated?: (info: DebuggerSessionInfo) => void;
+
+  constructor(
+    obsoleteDebuggerLinesAndColumnsStartAt1OrCallback?: boolean | ((info: DebuggerSessionInfo) => void),
+    obsoleteIsServer?: boolean
+  ) {
+    super(
+      typeof obsoleteDebuggerLinesAndColumnsStartAt1OrCallback === 'boolean'
+        ? obsoleteDebuggerLinesAndColumnsStartAt1OrCallback
+        : undefined,
+      obsoleteIsServer
+    );
+    this.onSessionInfoUpdated =
+      typeof obsoleteDebuggerLinesAndColumnsStartAt1OrCallback === 'function'
+        ? obsoleteDebuggerLinesAndColumnsStartAt1OrCallback
+        : undefined;
+  }
 
   protected initializeRequest(
     response: DebugProtocol.InitializeResponse,
@@ -70,6 +91,8 @@ export class SorobanDebugSession extends DebugSession {
       this.variableHandles.clear();
       this.nextVarHandle = 1;
       this.exportedFunctions = await this.debuggerProcess.getContractFunctions();
+      this.sessionInfo = this.debuggerProcess.getSessionInfo();
+      this.onSessionInfoUpdated?.(this.sessionInfo);
 
       this.attachProcessListeners();
       this.sendResponse(response);
@@ -611,5 +634,13 @@ export class SorobanDebugSession extends DebugSession {
     this.hasExecuted = false;
     this.sourceFunctionBreakpoints.clear();
     this.functionBreakpointRefCounts.clear();
+    this.sessionInfo = {
+      backendVersion: 'unknown',
+      protocolVersion: 'unknown'
+    };
+  }
+
+  public getSessionInfo(): DebuggerSessionInfo {
+    return { ...this.sessionInfo };
   }
 }

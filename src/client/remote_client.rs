@@ -334,7 +334,7 @@ impl RemoteClient {
         let response = self.send_request(DebugRequest::Ping)?;
 
         match response {
-            DebugResponse::Pong => {
+            DebugResponse::Pong { .. } => {
                 info!("Server responded to ping");
                 Ok(())
             }
@@ -425,7 +425,13 @@ mod tests {
 
     #[test]
     fn parse_response_line_rejects_mismatched_ids() {
-        let msg = DebugMessage::response(42, DebugResponse::Pong);
+        let msg = DebugMessage::response(
+            42,
+            DebugResponse::Pong {
+                backend_version: Some("0.1.0".to_string()),
+                protocol_version: Some("1".to_string()),
+            },
+        );
         let line = serde_json::to_string(&msg).unwrap();
         let err = parse_response_line(7, &line).unwrap_err();
         assert!(err.to_string().contains("Mismatched response id"));
@@ -433,10 +439,16 @@ mod tests {
 
     #[test]
     fn parse_response_line_accepts_matching_ids() {
-        let msg = DebugMessage::response(7, DebugResponse::Pong);
+        let msg = DebugMessage::response(
+            7,
+            DebugResponse::Pong {
+                backend_version: Some("0.1.0".to_string()),
+                protocol_version: Some("1".to_string()),
+            },
+        );
         let line = serde_json::to_string(&msg).unwrap();
         let resp = parse_response_line(7, &line).unwrap();
-        assert!(matches!(resp, DebugResponse::Pong));
+        assert!(matches!(resp, DebugResponse::Pong { .. }));
     }
 
     #[test]

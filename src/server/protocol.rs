@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub const DEBUG_PROTOCOL_VERSION: &str = "1";
+
 /// Structured event category used by dynamic security analysis.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DynamicTraceEventKind {
@@ -182,8 +184,13 @@ pub enum DebugResponse {
         variables_reference: u64,
     },
 
-    /// Pong response
-    Pong,
+    /// Pong response with optional version metadata.
+    ///
+    /// Fields are optional for backward compatibility with older clients/servers.
+    Pong {
+        backend_version: Option<String>,
+        protocol_version: Option<String>,
+    },
 
     /// Disconnected
     Disconnected,

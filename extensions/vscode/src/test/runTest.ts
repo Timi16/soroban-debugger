@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
-import { DebuggerProcess } from '../cli/debuggerProcess';
+import { DebuggerProcess, extractSessionInfoFromPong } from '../cli/debuggerProcess';
 import { resolveSourceBreakpoints } from '../dap/sourceBreakpoints';
 
 async function main(): Promise<void> {
@@ -38,6 +38,13 @@ async function main(): Promise<void> {
 
   await debuggerProcess.start();
   await debuggerProcess.ping();
+  const sessionInfo = debuggerProcess.getSessionInfo();
+  assert.ok(sessionInfo.backendVersion.length > 0, 'Expected backend version to be populated');
+  assert.ok(sessionInfo.protocolVersion.length > 0, 'Expected protocol version to be populated');
+
+  const fallbackInfo = extractSessionInfoFromPong({ type: 'Pong' });
+  assert.equal(fallbackInfo.backendVersion, 'unknown', 'Expected missing backend version to fallback to unknown');
+  assert.equal(fallbackInfo.protocolVersion, 'unknown', 'Expected missing protocol version to fallback to unknown');
 
   const sourcePath = path.join(repoRoot, 'tests', 'fixtures', 'contracts', 'echo', 'src', 'lib.rs');
   const exportedFunctions = await debuggerProcess.getContractFunctions();
