@@ -3,7 +3,13 @@ import { ChildProcess, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as net from 'net';
 import * as path from 'path';
-import { DebuggerProcess, validateLaunchConfig, formatProtocolMismatchMessage, DebuggerTimeoutError } from '../cli/debuggerProcess';
+import {
+  DebuggerProcess,
+  validateLaunchConfig,
+  formatProtocolMismatchMessage,
+  DebuggerTimeoutError,
+  extractSessionInfoFromPong
+} from '../cli/debuggerProcess';
 import { resolveSourceBreakpoints } from '../dap/sourceBreakpoints';
 import { VariableStore } from '../dap/variableStore';
 import {
@@ -457,6 +463,12 @@ async function main(): Promise<void> {
 
   await debuggerProcess.start();
   await debuggerProcess.ping();
+  const sessionInfo = debuggerProcess.getSessionInfo();
+  assert.ok(sessionInfo.backendVersion.length > 0, 'Expected backend version to be populated');
+  assert.ok(sessionInfo.protocolVersion.length > 0, 'Expected protocol version to be populated');
+  const fallbackInfo = extractSessionInfoFromPong({ type: 'Pong' });
+  assert.equal(fallbackInfo.backendVersion, 'unknown', 'Expected missing backend version to fallback to unknown');
+  assert.equal(fallbackInfo.protocolVersion, 'unknown', 'Expected missing protocol version to fallback to unknown');
 
   const sourcePath = path.join(repoRoot, 'tests', 'fixtures', 'contracts', 'echo', 'src', 'lib.rs');
   assert.ok(fs.existsSync(sourcePath), `Missing fixture source: ${sourcePath}`);

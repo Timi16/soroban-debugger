@@ -6,6 +6,7 @@ use crate::server::protocol::{
 };
 use crate::server::protocol::{
     BreakpointCapabilities, BreakpointDescriptor, DebugMessage, DebugRequest, DebugResponse,
+    DEBUG_PROTOCOL_VERSION,
 };
 use crate::simulator::SnapshotLoader;
 use crate::Result;
@@ -148,7 +149,13 @@ impl DebugServer {
             info!("Received request: {}", summarize_request(&request));
 
             if matches!(request, DebugRequest::Ping) {
-                let response = DebugMessage::response(message.id, DebugResponse::Pong);
+                let response = DebugMessage::response(
+                    message.id,
+                    DebugResponse::Pong {
+                        backend_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                        protocol_version: Some(DEBUG_PROTOCOL_VERSION.to_string()),
+                    },
+                );
                 send_response(&mut writer, response).await?;
                 continue;
             }
@@ -808,7 +815,6 @@ impl DebugServer {
                             .to_string(),
                     },
                 },
-                DebugRequest::Ping => DebugResponse::Pong,
                 DebugRequest::Disconnect => DebugResponse::Disconnected,
                 DebugRequest::Unknown => DebugResponse::Error {
                     message: "Unknown request type".to_string(),

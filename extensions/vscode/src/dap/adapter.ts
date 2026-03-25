@@ -8,6 +8,7 @@ import * as readline from 'readline';
 import {
   DebuggerProcess,
   DebuggerProcessConfig,
+  DebuggerSessionInfo,
   DebuggerTimeoutError,
   validateLaunchConfig
 } from '../cli/debuggerProcess';
@@ -36,6 +37,11 @@ export class SorobanDebugSession extends DebugSession {
   private exportedFunctions = new Set<string>();
   private sourceFunctionBreakpoints = new Map<string, Set<string>>();
   private functionBreakpointRefCounts = new Map<string, number>();
+  private sessionInfo: DebuggerSessionInfo = {
+    backendVersion: 'unknown',
+    protocolVersion: 'unknown'
+  };
+  private readonly onSessionInfoUpdated?: (info: DebuggerSessionInfo) => void;
   private requestAbortControllers = new Map<number, AbortController>();
   private refreshAbortController: AbortController | null = null;
   private refreshGeneration = 0;
@@ -46,19 +52,12 @@ export class SorobanDebugSession extends DebugSession {
   };
 
   constructor(
-    obsoleteDebuggerLinesAndColumnsStartAt1?: boolean | LogManager,
-    obsoleteIsServer?: boolean
+    logManager?: LogManager,
+    onSessionInfoUpdated?: (info: DebuggerSessionInfo) => void
   ) {
-    super(
-      typeof obsoleteDebuggerLinesAndColumnsStartAt1 === 'boolean'
-        ? obsoleteDebuggerLinesAndColumnsStartAt1
-        : undefined,
-      obsoleteIsServer
-    );
-
-    if (obsoleteDebuggerLinesAndColumnsStartAt1 && typeof obsoleteDebuggerLinesAndColumnsStartAt1 !== 'boolean') {
-      this.logManager = obsoleteDebuggerLinesAndColumnsStartAt1;
-    }
+    super();
+    this.logManager = logManager;
+    this.onSessionInfoUpdated = onSessionInfoUpdated;
   }
 
   protected initializeRequest(
@@ -112,6 +111,8 @@ export class SorobanDebugSession extends DebugSession {
       this.hasExecuted = false;
       this.variableStore.reset();
       this.exportedFunctions = await this.debuggerProcess.getContractFunctions();
+      this.sessionInfo = this.debuggerProcess.getSessionInfo();
+      this.onSessionInfoUpdated?.(this.sessionInfo);
       this.backendCapabilities = await this.debuggerProcess.getCapabilities().catch(() => ({
         conditionalBreakpoints: false,
         hitConditionalBreakpoints: false,
@@ -763,6 +764,15 @@ export class SorobanDebugSession extends DebugSession {
     this.state.args = undefined;
     this.hasExecuted = false;
     this.sourceFunctionBreakpoints.clear();
+    this.functionBreakpointRefCounts.clear();
+    this.sessionInfo = {
+      backendVersion: 'unknown',
+      protocolVersion: 'unknown'
+    };
+  }
+
+  public getSessionInfo(): DebuggerSessionInfo {
+    return { ...this.sessionInfo };
   }
 
   private describeCapabilityFallback(bp: DebugProtocol.SourceBreakpoint): string | undefined {
