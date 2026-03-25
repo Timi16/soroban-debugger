@@ -2,7 +2,7 @@ use crate::debugger::breakpoint::{BreakpointManager, BreakpointSpec};
 use crate::debugger::engine::{DebuggerEngine, StepOverResult};
 use crate::inspector::budget::BudgetInspector;
 use crate::server::protocol::{
-    negotiate_protocol_version, PROTOCOL_MAX_VERSION, PROTOCOL_MIN_VERSION,
+    negotiate_protocol_version, PROTOCOL_MAX_VERSION, PROTOCOL_MIN_VERSION, DEBUG_PROTOCOL_VERSION,
 };
 use crate::server::protocol::{
     BreakpointCapabilities, BreakpointDescriptor, DebugMessage, DebugRequest, DebugResponse,
@@ -148,7 +148,13 @@ impl DebugServer {
             info!("Received request: {}", summarize_request(&request));
 
             if matches!(request, DebugRequest::Ping) {
-                let response = DebugMessage::response(message.id, DebugResponse::Pong);
+                let response = DebugMessage::response(
+                    message.id,
+                    DebugResponse::Pong {
+                        backend_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                        protocol_version: Some(DEBUG_PROTOCOL_VERSION.to_string()),
+                    },
+                );
                 send_response(&mut writer, response).await?;
                 continue;
             }
@@ -808,7 +814,10 @@ impl DebugServer {
                             .to_string(),
                     },
                 },
-                DebugRequest::Ping => DebugResponse::Pong,
+                DebugRequest::Ping => DebugResponse::Pong {
+                    backend_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                    protocol_version: Some(DEBUG_PROTOCOL_VERSION.to_string()),
+                },
                 DebugRequest::Disconnect => DebugResponse::Disconnected,
                 DebugRequest::Unknown => DebugResponse::Error {
                     message: "Unknown request type".to_string(),

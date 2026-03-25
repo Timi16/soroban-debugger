@@ -7,6 +7,8 @@ pub const PROTOCOL_VERSION: u32 = 1;
 pub const PROTOCOL_MIN_VERSION: u32 = 1;
 /// Maximum protocol version this backend can communicate with.
 pub const PROTOCOL_MAX_VERSION: u32 = 1;
+/// Debug protocol version for external clients (e.g., VS Code extension)
+pub const DEBUG_PROTOCOL_VERSION: &str = "1";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProtocolNegotiationError {
@@ -345,7 +347,12 @@ pub enum DebugResponse {
     },
 
     /// Pong response
-    Pong,
+    Pong {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        backend_version: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        protocol_version: Option<String>,
+    },
 
     /// Disconnected
     Disconnected,
