@@ -280,7 +280,7 @@ impl SecurityRule for ArithmeticCheckRule {
                     description: format!("Unchecked arithmetic operation detected: {:?}", instr),
                     remediation: "Ensure arithmetic operations are guarded with proper bounds checks or overflow handling.".to_string(),
                     confidence: None,
-                    context: None,
+                    rationale: None,
                 });
             }
         }
@@ -300,6 +300,17 @@ impl ArithmeticCheckRule {
                 | WasmInstruction::I64Sub
                 | WasmInstruction::I64Mul
         )
+    }
+
+    fn is_guarded(instructions: &[WasmInstruction], arithmetic_idx: usize) -> bool {
+        if arithmetic_idx + 1 >= instructions.len() {
+            return false;
+        }
+
+        let window_end = (arithmetic_idx + 4).min(instructions.len());
+        instructions[arithmetic_idx + 1..window_end]
+            .iter()
+            .any(|instr| matches!(instr, WasmInstruction::If | WasmInstruction::BrIf))
     }
 }
 
@@ -449,7 +460,7 @@ impl SecurityRule for CrossContractImportRule {
             remediation: "Review external call sites for reentrancy and authorization checks."
                 .to_string(),
             confidence: None,
-            context: None,
+            rationale: None,
         }])
     }
 }
@@ -527,29 +538,14 @@ impl SecurityRule for UnboundedIterationRule {
             ),
             remediation: "Bound iteration over storage-backed collections (pagination, explicit limits, or capped batch size).".to_string(),
             confidence: analysis.confidence,
-            context: analysis.context,
+            rationale: analysis.rationale.clone(),
         };
 
-        // Enhance description with additional context if available
-        if let Some(context) = &finding.context {
-            if let Some(pattern) = &context.storage_call_pattern {
-                if pattern.calls_outside_loops > 0 {
-                    finding.description = format!(
-                        "{} Also found {} storage calls outside loops (may indicate mixed access patterns).",
-                        finding.description,
-                        pattern.calls_outside_loops
-                    );
-                }
-            }
-
-            if let Some(depth) = context.loop_nesting_depth {
-                if depth > 1 {
-                    finding.description = format!(
-                        "{} Loop nesting depth: {} (increased complexity).",
-                        finding.description, depth
-                    );
-                }
-            }
+        if analysis.max_nesting_depth > 1 {
+            finding.description = format!(
+                "{} Loop nesting depth: {} (increased complexity).",
+                finding.description, analysis.max_nesting_depth
+            );
         }
 
         Ok(vec![finding])
@@ -607,10 +603,10 @@ fn analyze_unbounded_iteration_static(wasm_bytes: &[u8]) -> UnboundedStaticSigna
     let mut signal = UnboundedStaticSignal::default();
 
     let mut storage_calls_in_loops = 0usize;
-    let mut storage_calls_outside_loops = 0usize;
+    let mut _storage_calls_outside_loops = 0usize;
     let mut loop_types_with_calls: HashSet<String> = HashSet::new();
     let mut loop_types_seen: HashSet<String> = HashSet::new();
-    let mut conditional_branches = 0usize;
+    let mut _conditional_branches = 0usize;
 
     for payload in Parser::new(0).parse_all(wasm_bytes) {
         let Ok(payload) = payload else {
@@ -660,7 +656,7 @@ fn analyze_unbounded_iteration_static(wasm_bytes: &[u8]) -> UnboundedStaticSigna
                             control_flow_stack.push(ControlFlowFrame::Block);
                         }
                         Operator::If { .. } => {
-                            conditional_branches += 1;
+                            _conditional_branches += 1;
                             control_flow_stack.push(ControlFlowFrame::If);
                         }
                         Operator::Else => {}
@@ -685,12 +681,12 @@ fn analyze_unbounded_iteration_static(wasm_bytes: &[u8]) -> UnboundedStaticSigna
                                         }
                                     }
                                 } else {
-                                    storage_calls_outside_loops += 1;
+                                    _storage_calls_outside_loops += 1;
                                 }
                             }
                         }
                         Operator::BrIf { .. } => {
-                            conditional_branches += 1;
+                            _conditional_branches += 1;
                         }
                         _ => {}
                     }
@@ -723,9 +719,7 @@ fn analyze_unbounded_iteration_static(wasm_bytes: &[u8]) -> UnboundedStaticSigna
 
     signal.confidence = Some(confidence);
 
-    signal.suspicious = storage_calls_in_loops > 0;
-    signal
-
+    let mut signal = signal;
     signal.suspicious = storage_calls_in_loops > 0;
     signal
 }

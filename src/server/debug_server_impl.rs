@@ -42,7 +42,7 @@ impl DebugServer {
                 crate::DebuggerError::ExecutionError(format!("Accept failed: {e}"))
             })?;
             let token = self.token.clone();
-            tokio::spawn(async move {
+            tokio::task::spawn_local(async move {
                 let _ = handle_connection(stream, token).await;
             });
         }

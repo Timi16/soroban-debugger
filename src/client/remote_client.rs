@@ -495,7 +495,7 @@ impl RemoteClient {
                 Ok(resp) => return Ok(resp),
                 Err(failure) => {
                     if !idempotent || attempt >= max_attempts || !failure.is_transient() {
-                        return Err(failure.into_error(operation, timeout).into());
+                        return Err(failure.into_error(operation).into());
                     }
 
                     // On transient failures, prefer reconnecting to clear any partial state/buffers.
@@ -637,7 +637,7 @@ impl SendFailure {
         }
     }
 
-    fn into_error(self, operation: &str, timeout: Duration) -> DebuggerError {
+    fn into_error(self, operation: &str) -> DebuggerError {
         match self {
             SendFailure::NotAuthenticated => DebuggerError::AuthenticationFailed(
                 "Not authenticated. Call authenticate() first.".to_string(),
@@ -646,7 +646,7 @@ impl SendFailure {
                 "{} failed: connection closed by peer",
                 operation
             )),
-            SendFailure::Timeout { stage, .. } => DebuggerError::RequestTimeout {
+            SendFailure::Timeout { stage, timeout } => DebuggerError::RequestTimeout {
                 operation: format!("{} ({})", operation, stage),
                 timeout_ms: timeout.as_millis() as u64,
             },
@@ -668,7 +668,7 @@ fn backoff_delay(base: Duration, max: Duration, attempt: usize) -> Duration {
         return base.min(max);
     }
 
-    let exp = 1u32.saturating_shl((attempt - 1).min(31) as u32);
+    let exp = 1u32.checked_shl((attempt - 1).min(31) as u32).unwrap_or(0);
     let delay = base.checked_mul(exp).unwrap_or(max).min(max);
     delay
 }
@@ -697,14 +697,6 @@ fn parse_response_line(expected_id: u64, response_line: &str) -> Result<DebugRes
     }
 
     Ok(response)
-}
-
-fn sanitize_auth_message(message: &str, token: &str) -> String {
-    if token.is_empty() {
-        return message.to_string();
-    }
-
-    message.replace(token, "<redacted>")
 }
 
 impl Drop for RemoteClient {
