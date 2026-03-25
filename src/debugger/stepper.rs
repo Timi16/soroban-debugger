@@ -182,6 +182,7 @@ impl Stepper {
         }
         false
     }
+    #[allow(dead_code)]
     /// Find next instruction at lower call depth (step out)
     fn find_next_instruction_at_lower_depth(&self, debug_state: &mut DebugState) -> bool {
         let current_depth = debug_state.instruction_pointer().call_stack_depth();

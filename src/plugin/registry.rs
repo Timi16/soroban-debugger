@@ -806,7 +806,7 @@ impl PluginRegistry {
                 }
                 Err(err)
             }
-            Ok(Ok(value)) if elapsed > timeout => {
+            Ok(Ok(_value)) if elapsed > timeout => {
                 state.total_timeouts += 1;
                 state.total_failures += 1;
                 state.timeout_count += 1;

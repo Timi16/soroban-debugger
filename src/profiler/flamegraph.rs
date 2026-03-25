@@ -1,6 +1,8 @@
-use crate::profiler::analyzer::{FunctionProfile, OptimizationReport};
+use crate::profiler::analyzer::OptimizationReport;
+#[cfg(test)]
+use crate::profiler::analyzer::FunctionProfile;
 use crate::Result;
-use std::io::Write;
+use inferno::flamegraph::{from_reader, Options};
 
 #[derive(Debug, Clone)]
 pub struct FlameGraphStack {
@@ -42,7 +44,7 @@ impl FlameGraphGenerator {
             }
 
             for (idx, access) in function.storage_accesses.iter().enumerate() {
-                let cost = access.total_cpu as f64;
+                let cost = access.1.total_cpu as f64;
                 if cost > 0.0 {
                     let access_count = (cost / cpu_per_unit).max(1.0) as u64;
                     stacks.push(FlameGraphStack {
@@ -51,7 +53,7 @@ impl FlameGraphGenerator {
                             format!(
                                 "storage;key{};access_count={}",
                                 idx,
-                                access.access_count
+                                access.1.access_count
                             ),
                         ],
                         count: access_count,
@@ -77,17 +79,13 @@ impl FlameGraphGenerator {
     pub fn generate_svg(stacks: &[FlameGraphStack], width: usize, height: usize) -> Result<String> {
         let collapsed = Self::to_collapsed_stack_format(stacks);
         let reader = std::io::Cursor::new(collapsed);
-
-        let mut renderer = inferno::flamegraph::Renderer::default()
-            .width(width)
-            .height(height)
-            .image_width(width)
-            .font_size(12);
-
+        let mut opts = Options::default();
+        opts.frame_height = height;
+        opts.image_width = Some(width);
         let mut svg = Vec::new();
-        renderer.render(reader, &mut svg)?;
+        from_reader(&mut opts, reader, &mut svg).map_err(|e| miette::miette!(e))?;
 
-        Ok(String::from_utf8(svg)?)
+        Ok(String::from_utf8(svg).map_err(|e| miette::miette!(e))?)
     }
 
     pub fn write_collapsed_stack_file<P: AsRef<std::path::Path>>(
@@ -95,7 +93,7 @@ impl FlameGraphGenerator {
         path: P,
     ) -> Result<()> {
         let collapsed = Self::to_collapsed_stack_format(stacks);
-        std::fs::write(path, collapsed)?;
+        std::fs::write(path, collapsed).map_err(|e| miette::miette!(e))?;
         Ok(())
     }
 
@@ -106,7 +104,7 @@ impl FlameGraphGenerator {
         height: usize,
     ) -> Result<()> {
         let svg = Self::generate_svg(stacks, width, height)?;
-        std::fs::write(path, svg)?;
+        std::fs::write(path, svg).map_err(|e| miette::miette!(e))?;
         Ok(())
     }
 }

@@ -3,7 +3,7 @@ use crate::runtime::executor::ContractExecutor;
 use crate::inspector::budget::BudgetInspector;
 use crate::server::protocol::{
     negotiate_protocol_version, DebugMessage, DebugRequest, DebugResponse, PROTOCOL_MAX_VERSION,
-    PROTOCOL_MIN_VERSION,
+    PROTOCOL_MIN_VERSION, DEBUG_PROTOCOL_VERSION,
 };
 use crate::simulator::SnapshotLoader;
 use crate::Result;
@@ -42,7 +42,7 @@ impl DebugServer {
                 crate::DebuggerError::ExecutionError(format!("Accept failed: {e}"))
             })?;
             let token = self.token.clone();
-            tokio::spawn(async move {
+            tokio::task::spawn_local(async move {
                 let _ = handle_connection(stream, token).await;
             });
         }
@@ -104,7 +104,13 @@ where
 
         // Ping is allowed before handshake/auth.
         if matches!(&request, DebugRequest::Ping) {
-            let resp = DebugMessage::response(message.id, DebugResponse::Pong);
+            let resp = DebugMessage::response(
+                message.id,
+                DebugResponse::Pong {
+                    backend_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+                    protocol_version: Some(DEBUG_PROTOCOL_VERSION.to_string()),
+                },
+            );
             send_response(&mut writer, resp).await?;
             continue;
         }

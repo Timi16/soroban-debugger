@@ -432,7 +432,7 @@ impl RemoteClient {
             self.send_request_with_retry(DebugRequest::Ping, RequestClass::Ping, true)?;
 
         match response {
-            DebugResponse::Pong => {
+            DebugResponse::Pong { .. } => {
                 info!("Server responded to ping");
                 Ok(())
             }
@@ -495,7 +495,7 @@ impl RemoteClient {
                 Ok(resp) => return Ok(resp),
                 Err(failure) => {
                     if !idempotent || attempt >= max_attempts || !failure.is_transient() {
-                        return Err(failure.into_error(operation, timeout).into());
+                        return Err(failure.into_error(operation).into());
                     }
 
                     // On transient failures, prefer reconnecting to clear any partial state/buffers.
@@ -637,7 +637,7 @@ impl SendFailure {
         }
     }
 
-    fn into_error(self, operation: &str, timeout: Duration) -> DebuggerError {
+    fn into_error(self, operation: &str) -> DebuggerError {
         match self {
             SendFailure::NotAuthenticated => DebuggerError::AuthenticationFailed(
                 "Not authenticated. Call authenticate() first.".to_string(),
@@ -646,7 +646,7 @@ impl SendFailure {
                 "{} failed: connection closed by peer",
                 operation
             )),
-            SendFailure::Timeout { stage, .. } => DebuggerError::RequestTimeout {
+            SendFailure::Timeout { stage, timeout } => DebuggerError::RequestTimeout {
                 operation: format!("{} ({})", operation, stage),
                 timeout_ms: timeout.as_millis() as u64,
             },
@@ -668,7 +668,7 @@ fn backoff_delay(base: Duration, max: Duration, attempt: usize) -> Duration {
         return base.min(max);
     }
 
-    let exp = 1u32.saturating_shl((attempt - 1).min(31) as u32);
+    let exp = 1u32.checked_shl((attempt - 1).min(31) as u32).unwrap_or(0);
     let delay = base.checked_mul(exp).unwrap_or(max).min(max);
     delay
 }
@@ -699,14 +699,6 @@ fn parse_response_line(expected_id: u64, response_line: &str) -> Result<DebugRes
     Ok(response)
 }
 
-fn sanitize_auth_message(message: &str, token: &str) -> String {
-    if token.is_empty() {
-        return message.to_string();
-    }
-
-    message.replace(token, "<redacted>")
-}
-
 impl Drop for RemoteClient {
     fn drop(&mut self) {
         let _ = self.disconnect();
@@ -723,7 +715,13 @@ mod tests {
 
     #[test]
     fn parse_response_line_rejects_mismatched_ids() {
-        let msg = DebugMessage::response(42, DebugResponse::Pong);
+        let msg = DebugMessage::response(
+            42,
+            DebugResponse::Pong {
+                backend_version: Some("0.1.0".to_string()),
+                protocol_version: Some("1".to_string()),
+            },
+        );
         let line = serde_json::to_string(&msg).unwrap();
         let err = parse_response_line(7, &line).unwrap_err();
         assert!(err.to_string().contains("Mismatched response id"));
@@ -731,10 +729,16 @@ mod tests {
 
     #[test]
     fn parse_response_line_accepts_matching_ids() {
-        let msg = DebugMessage::response(7, DebugResponse::Pong);
+        let msg = DebugMessage::response(
+            7,
+            DebugResponse::Pong {
+                backend_version: Some("0.1.0".to_string()),
+                protocol_version: Some("1".to_string()),
+            },
+        );
         let line = serde_json::to_string(&msg).unwrap();
         let resp = parse_response_line(7, &line).unwrap();
-        assert!(matches!(resp, DebugResponse::Pong));
+        assert!(matches!(resp, DebugResponse::Pong { .. }));
     }
 
     #[test]
@@ -800,7 +804,13 @@ mod tests {
 
                 let msg: DebugMessage = serde_json::from_str(line.trim_end()).unwrap();
                 let id = msg.id;
-                let response = DebugMessage::response(id, DebugResponse::Pong);
+                let response = DebugMessage::response(
+                    id,
+                    DebugResponse::Pong {
+                        backend_version: Some("0.1.0".to_string()),
+                        protocol_version: Some("1".to_string()),
+                    },
+                );
                 let json = serde_json::to_string(&response).unwrap();
                 let _ = writeln!(stream, "{}", json);
                 let _ = stream.flush();

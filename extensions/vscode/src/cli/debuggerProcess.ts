@@ -45,6 +45,11 @@ export interface DebuggerContinueResult {
   paused: boolean;
 }
 
+export interface DebuggerSessionInfo {
+  backendVersion: string;
+  protocolVersion: string;
+}
+
 export interface BackendBreakpointCapabilities {
   conditionalBreakpoints: boolean;
   hitConditionalBreakpoints: boolean;
@@ -155,7 +160,7 @@ type DebugResponse =
         log_points: boolean;
       };
     }
-  | { type: 'Pong' }
+  | { type: 'Pong'; backend_version?: string; protocol_version?: string }
   | { type: 'Disconnected' }
   | { type: 'Unknown' }
   | { type: 'Error'; message: string };
@@ -194,6 +199,10 @@ export class DebuggerProcess {
   private logManager: LogManager | undefined;
   private port: number | null = null;
   private negotiatedProtocolVersion: number | null = null;
+  private sessionInfo: DebuggerSessionInfo = {
+    backendVersion: 'unknown',
+    protocolVersion: 'unknown'
+  };
   private defaultRequestTimeoutMs: number;
   private defaultConnectTimeoutMs: number;
 
@@ -277,6 +286,7 @@ export class DebuggerProcess {
         contract_path: this.config.contractPath
       });
       this.expectResponse(contractResponse, 'ContractLoaded');
+      await this.captureSessionInfo();
     } catch (error) {
       await this.stop().catch(() => undefined);
       throw error;
@@ -360,6 +370,11 @@ export class DebuggerProcess {
   async ping(): Promise<void> {
     const response = await this.sendRequest({ type: 'Ping' });
     this.expectResponse(response, 'Pong');
+    this.sessionInfo = extractSessionInfoFromPong(response);
+  }
+
+  getSessionInfo(): DebuggerSessionInfo {
+    return { ...this.sessionInfo };
   }
 
   async getCapabilities(): Promise<BackendBreakpointCapabilities> {
@@ -381,11 +396,7 @@ export class DebuggerProcess {
   }): Promise<void> {
     const response = await this.sendRequest({
       type: 'SetBreakpoint',
-      id: breakpoint.id,
       function: breakpoint.functionName,
-      condition: breakpoint.condition,
-      hit_condition: breakpoint.hitCondition,
-      log_message: breakpoint.logMessage
     });
     this.expectResponse(response, 'BreakpointSet');
   }
@@ -393,7 +404,7 @@ export class DebuggerProcess {
   async clearBreakpoint(breakpointId: string): Promise<void> {
     const response = await this.sendRequest({
       type: 'ClearBreakpoint',
-      id: breakpointId
+      function: breakpointId
     });
     this.expectResponse(response, 'BreakpointCleared');
   }
@@ -544,6 +555,19 @@ export class DebuggerProcess {
 
   isRunning(): boolean {
     return this.childProcess !== null && this.socket !== null && !this.socket.destroyed;
+  }
+
+  private async captureSessionInfo(): Promise<void> {
+    try {
+      const response = await this.sendRequest({ type: 'Ping' });
+      this.expectResponse(response, 'Pong');
+      this.sessionInfo = extractSessionInfoFromPong(response);
+    } catch {
+      this.sessionInfo = {
+        backendVersion: 'unknown',
+        protocolVersion: 'unknown'
+      };
+    }
   }
 
   private async findAvailablePort(): Promise<number> {
@@ -786,6 +810,15 @@ export class DebuggerProcess {
       throw new Error(`Unexpected debugger response: expected ${type}, got ${response.type}`);
     }
   }
+}
+
+export function extractSessionInfoFromPong(
+  response: Extract<DebugResponse, { type: 'Pong' }>
+): DebuggerSessionInfo {
+  return {
+    backendVersion: response.backend_version ?? 'unknown',
+    protocolVersion: response.protocol_version ?? 'unknown'
+  };
 }
 
 function debuggerBinaryName(): string {
