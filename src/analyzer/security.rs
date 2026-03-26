@@ -6,17 +6,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use wasmparser::{Operator, Parser, Payload};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum Severity {
+    #[default]
     Low,
     Medium,
     High,
-}
-
-impl Default for Severity {
-    fn default() -> Self {
-        Severity::Low
-    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -88,7 +83,7 @@ impl SecurityAnalyzer {
 
         for rule in &self.rules {
             let name = rule.name();
-            
+
             if !filter.enable_rules.is_empty() && !filter.enable_rules.iter().any(|r| r == name) {
                 continue;
             }
@@ -719,7 +714,6 @@ fn analyze_unbounded_iteration_static(wasm_bytes: &[u8]) -> UnboundedStaticSigna
 
     signal.confidence = Some(confidence);
 
-    let mut signal = signal;
     signal.suspicious = storage_calls_in_loops > 0;
     signal
 }
@@ -751,10 +745,6 @@ fn is_storage_read_import(module: &str, name: &str) -> bool {
         if n.ends_with(base) {
             return true;
         }
-        if n.starts_with(base) {
-            let _suffix = &n[base.len()..];
-        }
-        
         if let Some(suffix) = n.strip_prefix(base) {
             if suffix.is_empty() {
                 return true;
@@ -765,7 +755,7 @@ fn is_storage_read_import(module: &str, name: &str) -> bool {
                 }
             }
         }
-        
+
         // Handle prefix-qualified names like "contract_storage_get".
         if n.ends_with(base) {
             return true;

@@ -98,10 +98,7 @@ impl std::fmt::Display for CallEntry {
 
 impl std::fmt::Display for EventEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let contract = self
-            .contract_id
-            .as_deref()
-            .unwrap_or("<unknown-contract>");
+        let contract = self.contract_id.as_deref().unwrap_or("<unknown-contract>");
         let topics = self.topics.join(", ");
         let data = self.data.as_deref().unwrap_or("<no-data>");
         write!(f, "[{}] topics=[{}] data={}", contract, topics, data)

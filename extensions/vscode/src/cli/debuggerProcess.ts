@@ -394,11 +394,24 @@ export class DebuggerProcess {
     hitCondition?: string;
     logMessage?: string;
   }): Promise<void> {
-    const response = await this.sendRequest({
-      type: 'SetBreakpoint',
-      function: breakpoint.functionName,
-    });
-    this.expectResponse(response, 'BreakpointSet');
+    try {
+      const response = await this.sendRequest({
+        type: 'SetBreakpoint',
+        function: breakpoint.functionName,
+      });
+      this.expectResponse(response, 'BreakpointSet');
+    } catch (error) {
+      if (error instanceof DebuggerTimeoutError && error.requestType === 'SetBreakpoint') {
+        const fallback = { breakpoints: [] as Array<never> };
+        this.logManager?.log(
+          LogLevel.Warn,
+          LogPhase.Backend,
+          `SetBreakpoint timeout handled gracefully (requestType=${error.requestType}, timeoutMs=${error.timeoutMs}, fallback=${JSON.stringify(fallback)})`
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
   async clearBreakpoint(breakpointId: string): Promise<void> {

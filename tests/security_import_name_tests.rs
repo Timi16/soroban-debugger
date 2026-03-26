@@ -1,4 +1,4 @@
-use soroban_debugger::analyzer::security::SecurityAnalyzer;
+use soroban_debugger::analyzer::security::{AnalyzerFilter, SecurityAnalyzer};
 
 fn uleb128(mut value: usize) -> Vec<u8> {
     let mut out = Vec::new();
@@ -74,7 +74,9 @@ fn make_wasm_with_import(module_name: &str, import_name: &str) -> Vec<u8> {
 
 fn has_cross_contract_import_finding(wasm: &[u8]) -> bool {
     let analyzer = SecurityAnalyzer::new();
-    let report = analyzer.analyze(wasm, None, None).expect("analysis failed");
+    let report = analyzer
+        .analyze(wasm, None, None, &AnalyzerFilter::default())
+        .expect("analysis failed");
     report
         .findings
         .iter()

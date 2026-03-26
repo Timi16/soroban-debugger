@@ -323,10 +323,7 @@ pub fn run_scenario(args: ScenarioArgs, _verbosity: Verbosity) -> Result<()> {
 
 /// Replaces `{{var_name}}` placeholders in `template` with values from `variables`.
 /// Returns an error with a descriptive message if any referenced variable is not defined.
-fn interpolate_variables(
-    template: &str,
-    variables: &HashMap<String, String>,
-) -> Result<String> {
+fn interpolate_variables(template: &str, variables: &HashMap<String, String>) -> Result<String> {
     let re = Regex::new(r"\{\{(\w+)\}\}").unwrap();
 
     // Collect any missing variable names first for a clear error message.
@@ -469,7 +466,11 @@ mod tests {
 
         let err = interpolate_variables("{{defined}} and {{missing}}", &vars).unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("missing"), "error should name the missing variable: {}", msg);
+        assert!(
+            msg.contains("missing"),
+            "error should name the missing variable: {}",
+            msg
+        );
         assert!(
             msg.contains("defined"),
             "error should list available variables: {}",
@@ -482,8 +483,16 @@ mod tests {
         let vars: HashMap<String, String> = HashMap::new();
         let err = interpolate_variables("{{unknown}}", &vars).unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("unknown"), "error should name the missing variable: {}", msg);
-        assert!(msg.contains("(none)"), "error should say no vars are available: {}", msg);
+        assert!(
+            msg.contains("unknown"),
+            "error should name the missing variable: {}",
+            msg
+        );
+        assert!(
+            msg.contains("(none)"),
+            "error should say no vars are available: {}",
+            msg
+        );
     }
 
     #[test]

@@ -161,7 +161,9 @@ fn history_prune_max_records_removes_oldest() {
         .args(["history-prune", "--max-records", "3"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Removed 2 record(s). 3 record(s) remaining."));
+        .stdout(predicate::str::contains(
+            "Removed 2 record(s). 3 record(s) remaining.",
+        ));
 
     // Verify file actually has 3 records now.
     let dir = temp.path().join(".soroban-debug");
@@ -210,4 +212,3 @@ fn history_prune_no_policy_prints_usage_hint() {
         .success()
         .stdout(predicate::str::contains("No retention policy specified"));
 }
-

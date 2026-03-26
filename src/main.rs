@@ -143,7 +143,10 @@ fn main() -> miette::Result<()> {
         std::env::set_var("SOROBAN_DEBUG_HISTORY_MAX_RECORDS", max_records.to_string());
     }
     if let Some(max_age_days) = cli.history_max_age_days {
-        std::env::set_var("SOROBAN_DEBUG_HISTORY_MAX_AGE_DAYS", max_age_days.to_string());
+        std::env::set_var(
+            "SOROBAN_DEBUG_HISTORY_MAX_AGE_DAYS",
+            max_age_days.to_string(),
+        );
     }
     if should_show_banner(&cli) {
         print_banner();

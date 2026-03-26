@@ -112,16 +112,15 @@ fn collect_estimates_files(root: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
             continue;
         }
 
-        if file_type.is_file() {
-            if path.file_name().and_then(|s| s.to_str()) == Some("estimates.json")
-                && path
-                    .parent()
-                    .and_then(|p| p.file_name())
-                    .and_then(|s| s.to_str())
-                    == Some("new")
-            {
-                out.push(path);
-            }
+        if file_type.is_file()
+            && path.file_name().and_then(|s| s.to_str()) == Some("estimates.json")
+            && path
+                .parent()
+                .and_then(|p| p.file_name())
+                .and_then(|s| s.to_str())
+                == Some("new")
+        {
+            out.push(path);
         }
     }
 

@@ -669,8 +669,7 @@ fn backoff_delay(base: Duration, max: Duration, attempt: usize) -> Duration {
     }
 
     let exp = 1u32.checked_shl((attempt - 1).min(31) as u32).unwrap_or(0);
-    let delay = base.checked_mul(exp).unwrap_or(max).min(max);
-    delay
+    base.checked_mul(exp).unwrap_or(max).min(max)
 }
 
 fn parse_response_line(expected_id: u64, response_line: &str) -> Result<DebugResponse> {

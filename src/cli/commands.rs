@@ -101,9 +101,8 @@ fn render_symbolic_report(report: &crate::analyzer::symbolic::SymbolicReport) ->
             "Replay token: {} (reproduce with --replay {})",
             seed, seed
         )),
-        None => lines.push(
-            "Replay token: none (add --seed <N> to lock the exploration order)".to_string(),
-        ),
+        None => lines
+            .push("Replay token: none (add --seed <N> to lock the exploration order)".to_string()),
     }
 
     if report.paths.is_empty() {
@@ -473,7 +472,10 @@ fn run_remote(args: &RunArgs, output_writer: &mut OutputWriter, remote_addr: &st
     }
 
     if let Some(snapshot_path) = &args.network_snapshot {
-        print_info(format!("Loading network snapshot on remote: {:?}", snapshot_path));
+        print_info(format!(
+            "Loading network snapshot on remote: {:?}",
+            snapshot_path
+        ));
         client.load_snapshot(&snapshot_path.to_string_lossy())?;
     }
 
@@ -505,14 +507,14 @@ fn run_remote(args: &RunArgs, output_writer: &mut OutputWriter, remote_addr: &st
 
     print_info("\n--- Remote Execution Start ---\n");
     let storage_before_str = client.get_storage()?;
-    let storage_before: std::collections::HashMap<String, String> = serde_json::from_str(&storage_before_str)
-        .unwrap_or_default();
+    let storage_before: std::collections::HashMap<String, String> =
+        serde_json::from_str(&storage_before_str).unwrap_or_default();
 
     let result = client.execute(&function, parsed_args.as_deref())?;
 
     let storage_after_str = client.get_storage()?;
-    let storage_after: std::collections::HashMap<String, String> = serde_json::from_str(&storage_after_str)
-        .unwrap_or_default();
+    let storage_after: std::collections::HashMap<String, String> =
+        serde_json::from_str(&storage_after_str).unwrap_or_default();
 
     let (cpu, mem) = client.get_budget()?;
 
@@ -522,7 +524,7 @@ fn run_remote(args: &RunArgs, output_writer: &mut OutputWriter, remote_addr: &st
     let storage_diff = crate::inspector::storage::StorageInspector::compute_diff(
         &storage_before,
         &storage_after,
-        &args.alert_on_change
+        &args.alert_on_change,
     );
     if !storage_diff.is_empty() || !args.alert_on_change.is_empty() {
         print_info("\n--- Storage Changes ---");
@@ -546,7 +548,10 @@ fn run_remote(args: &RunArgs, output_writer: &mut OutputWriter, remote_addr: &st
                     "status": "error",
                     "errors": [e.to_string()]
                 });
-                println!("{}", serde_json::to_string_pretty(&err_out).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&err_out).unwrap_or_default()
+                );
             }
         }
     }
@@ -1809,7 +1814,8 @@ pub fn replay(args: ReplayArgs, verbosity: Verbosity) -> Result<()> {
 
     // Compare results
     print_info("\n--- Comparison ---");
-    let report = crate::compare::CompareEngine::compare(&truncated_original, &replayed_trace, args.context);
+    let report =
+        crate::compare::CompareEngine::compare(&truncated_original, &replayed_trace, args.context);
     let rendered = crate::compare::CompareEngine::render_report(&report);
 
     if let Some(output_path) = &args.output {
@@ -1854,7 +1860,7 @@ pub fn server(args: ServerArgs) -> Result<()> {
         print_info("Token authentication enabled");
         if let Some(token) = args.token.as_deref() {
             if token.trim().len() < 16 {
-            print_warning(
+                print_warning(
                 "Remote debug token is shorter than 16 characters. Prefer at least 16 characters \
                  and ideally a random 32-byte token.",
             );
@@ -2352,7 +2358,9 @@ pub fn history_prune(args: HistoryPruneArgs, global_policy: RetentionPolicy) -> 
     } else {
         let PruneReport { removed, remaining } = manager.prune_history(&policy)?;
         if removed == 0 {
-            println!("History is within the retention limit. Nothing removed ({remaining} records).");
+            println!(
+                "History is within the retention limit. Nothing removed ({remaining} records)."
+            );
         } else {
             println!("Removed {removed} record(s). {remaining} record(s) remaining.");
         }

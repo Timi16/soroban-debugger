@@ -857,7 +857,10 @@ mod tests {
             "2",
         ]);
 
-        assert!(result.is_err(), "--seed and --replay should be mutually exclusive");
+        assert!(
+            result.is_err(),
+            "--seed and --replay should be mutually exclusive"
+        );
     }
 
     #[test]
@@ -1039,7 +1042,7 @@ pub struct ReplayArgs {
     /// Show verbose output during replay
     #[arg(short, long)]
     pub verbose: bool,
- 
+
     /// Number of context lines to show for divergence (default: 3)
     #[arg(short = 'C', long, default_value_t = 3)]
     pub context: usize,

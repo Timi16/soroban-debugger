@@ -130,7 +130,10 @@ fn analyze_filters_by_severity_and_rule() {
         // If there are no high severity findings (or if hardcoded-address is the only one),
         // we should either see specific output or just "No security findings".
         // It's a smoke test to ensure args parse and run without panicking.
-        .stdout(predicate::str::contains("Findings").or(predicate::str::contains("No security findings")));
+        .stdout(
+            predicate::str::contains("Findings")
+                .or(predicate::str::contains("No security findings")),
+        );
 }
 
 #[test]

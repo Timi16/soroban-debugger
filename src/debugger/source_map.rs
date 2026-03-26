@@ -602,4 +602,3 @@ fn paths_match_normalized(a: &str, b: &str) -> bool {
     let b_file = b.rsplit('/').next().unwrap_or(b);
     a_file == b_file
 }
-

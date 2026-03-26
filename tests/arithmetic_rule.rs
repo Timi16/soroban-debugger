@@ -1,4 +1,4 @@
-use soroban_debugger::analyzer::security::SecurityAnalyzer;
+use soroban_debugger::analyzer::security::{AnalyzerFilter, SecurityAnalyzer};
 use soroban_debugger::utils::wasm::{parse_instructions, WasmInstruction};
 
 fn encode_u32(mut value: u32) -> Vec<u8> {
@@ -51,7 +51,7 @@ fn wasm_with_single_i32_function(param_count: u8, locals: &[(u32, u8)], ops: &[u
 
 fn arithmetic_findings(wasm: &[u8]) -> Vec<soroban_debugger::analyzer::security::SecurityFinding> {
     SecurityAnalyzer::new()
-        .analyze(wasm, None, None)
+        .analyze(wasm, None, None, &AnalyzerFilter::default())
         .expect("analysis failed")
         .findings
         .into_iter()
@@ -139,7 +139,7 @@ fn test_ignores_call_guarded_arithmetic() {
     let wasm = vec![0x10, 0x6A];
     let analyzer = SecurityAnalyzer::new();
     let report = analyzer
-        .analyze(&wasm, None, None)
+        .analyze(&wasm, None, None, &AnalyzerFilter::default())
         .expect("analysis failed");
 
     let arithmetic_findings: Vec<_> = report

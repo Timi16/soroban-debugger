@@ -123,7 +123,10 @@ fn different_seeds_produce_different_exploration_order() {
     if report_a.paths.len() > 1 && report_b.paths.len() > 1 {
         let order_a: Vec<_> = report_a.paths.iter().map(|p| p.inputs.clone()).collect();
         let order_b: Vec<_> = report_b.paths.iter().map(|p| p.inputs.clone()).collect();
-        assert_ne!(order_a, order_b, "different seeds should yield different orders");
+        assert_ne!(
+            order_a, order_b,
+            "different seeds should yield different orders"
+        );
     }
 }
 

@@ -590,10 +590,10 @@ pub fn budget_trend_stats(records: &[RunHistory]) -> Option<BudgetTrendStats> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
     use std::io::Write as IoWrite;
     use tempfile::NamedTempFile;
     use tempfile::TempDir;
-    use chrono::Utc;
 
     // ── helpers ─────────────────────────────────────────────────────────────
 
@@ -1002,7 +1002,10 @@ mod tests {
             make_record("2026-01-04T00:00:00Z", 4, 4),
             make_record("2026-01-05T00:00:00Z", 5, 5),
         ];
-        let policy = RetentionPolicy { max_records: Some(3), max_age_days: None };
+        let policy = RetentionPolicy {
+            max_records: Some(3),
+            max_age_days: None,
+        };
         HistoryManager::apply_retention(&mut records, &policy);
         assert_eq!(records.len(), 3);
         // oldest two are gone; newest three remain
@@ -1016,7 +1019,10 @@ mod tests {
             make_record("2026-01-01T00:00:00Z", 1, 1),
             make_record("2026-01-02T00:00:00Z", 2, 2),
         ];
-        let policy = RetentionPolicy { max_records: Some(10), max_age_days: None };
+        let policy = RetentionPolicy {
+            max_records: Some(10),
+            max_age_days: None,
+        };
         HistoryManager::apply_retention(&mut records, &policy);
         assert_eq!(records.len(), 2);
     }
@@ -1030,7 +1036,10 @@ mod tests {
             make_record(&old_date, 1, 1),
             make_record(&recent_date, 2, 2),
         ];
-        let policy = RetentionPolicy { max_records: None, max_age_days: Some(5) };
+        let policy = RetentionPolicy {
+            max_records: None,
+            max_age_days: Some(5),
+        };
         HistoryManager::apply_retention(&mut records, &policy);
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].cpu_used, 2);
@@ -1043,28 +1052,41 @@ mod tests {
             make_record("2026-01-01T00:00:00Z", 1, 1),
         ];
         // Drop anything older than 1 day; "not-a-date" should be preserved.
-        let policy = RetentionPolicy { max_records: None, max_age_days: Some(1) };
+        let policy = RetentionPolicy {
+            max_records: None,
+            max_age_days: Some(1),
+        };
         HistoryManager::apply_retention(&mut records, &policy);
         let cpus: Vec<u64> = records.iter().map(|r| r.cpu_used).collect();
-        assert!(cpus.contains(&99), "record with unparseable date must not be dropped");
+        assert!(
+            cpus.contains(&99),
+            "record with unparseable date must not be dropped"
+        );
     }
 
     #[test]
     fn apply_retention_combined_policy_applies_both_constraints() {
         let old_date = (Utc::now() - chrono::Duration::days(10)).to_rfc3339();
         let mut records = vec![
-            make_record(&old_date, 1, 1),                      // dropped by age
-            make_record("2026-01-04T00:00:00Z", 10, 10),      // parseable but static past date
+            make_record(&old_date, 1, 1),                // dropped by age
+            make_record("2026-01-04T00:00:00Z", 10, 10), // parseable but static past date
             make_record("2026-01-05T00:00:00Z", 20, 20),
             make_record("2026-01-06T00:00:00Z", 30, 30),
         ];
         // max_age_days=5 drops the 10-day-old record; max_records=2 then keeps newest 2.
-        let policy = RetentionPolicy { max_records: Some(2), max_age_days: Some(5) };
+        let policy = RetentionPolicy {
+            max_records: Some(2),
+            max_age_days: Some(5),
+        };
         HistoryManager::apply_retention(&mut records, &policy);
         // After age-filter: 3 records remain (old_date dropped, static dates kept because
         // they parse as recent relative to each other but are in the past beyond our cutoff).
         // Regardless, max_records=2 must hold.
-        assert!(records.len() <= 2, "max_records must be respected; got {}", records.len());
+        assert!(
+            records.len() <= 2,
+            "max_records must be respected; got {}",
+            records.len()
+        );
     }
 
     #[test]
@@ -1072,10 +1094,15 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let manager = HistoryManager::with_path(temp.path().join("history.json"));
         for i in 1..=5 {
-            manager.append_record(make_record(&format!("2026-01-0{}T00:00:00Z", i), i, i)).unwrap();
+            manager
+                .append_record(make_record(&format!("2026-01-0{}T00:00:00Z", i), i, i))
+                .unwrap();
         }
 
-        let policy = RetentionPolicy { max_records: Some(3), max_age_days: None };
+        let policy = RetentionPolicy {
+            max_records: Some(3),
+            max_age_days: None,
+        };
         let report = manager.prune_history(&policy).unwrap();
         assert_eq!(report.removed, 2);
         assert_eq!(report.remaining, 3);
@@ -1089,18 +1116,26 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let path = temp.path().join("history.json");
         let manager = HistoryManager::with_path(path.clone());
-        manager.append_record(make_record("2026-01-01T00:00:00Z", 1, 1)).unwrap();
+        manager
+            .append_record(make_record("2026-01-01T00:00:00Z", 1, 1))
+            .unwrap();
 
         let mtime_before = fs::metadata(&path).unwrap().modified().unwrap();
         std::thread::sleep(std::time::Duration::from_millis(50));
 
-        let policy = RetentionPolicy { max_records: Some(10), max_age_days: None };
+        let policy = RetentionPolicy {
+            max_records: Some(10),
+            max_age_days: None,
+        };
         let report = manager.prune_history(&policy).unwrap();
         assert_eq!(report.removed, 0);
 
         // File should NOT have been rewritten (mtime unchanged).
         let mtime_after = fs::metadata(&path).unwrap().modified().unwrap();
-        assert_eq!(mtime_before, mtime_after, "file must not be rewritten when nothing is removed");
+        assert_eq!(
+            mtime_before, mtime_after,
+            "file must not be rewritten when nothing is removed"
+        );
     }
 
     #[test]
@@ -1108,7 +1143,10 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let manager = HistoryManager::with_path(temp.path().join("history.json"));
 
-        let policy = RetentionPolicy { max_records: Some(2), max_age_days: None };
+        let policy = RetentionPolicy {
+            max_records: Some(2),
+            max_age_days: None,
+        };
 
         for i in 1..=4u64 {
             manager

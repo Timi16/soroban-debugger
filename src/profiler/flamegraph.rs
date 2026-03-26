@@ -1,6 +1,6 @@
-use crate::profiler::analyzer::OptimizationReport;
 #[cfg(test)]
 use crate::profiler::analyzer::FunctionProfile;
+use crate::profiler::analyzer::OptimizationReport;
 use crate::Result;
 use inferno::flamegraph::{from_reader, Options};
 
@@ -50,11 +50,7 @@ impl FlameGraphGenerator {
                     stacks.push(FlameGraphStack {
                         stack: vec![
                             function.name.clone(),
-                            format!(
-                                "storage;key{};access_count={}",
-                                idx,
-                                access.1.access_count
-                            ),
+                            format!("storage;key{};access_count={}", idx, access.1.access_count),
                         ],
                         count: access_count,
                     });
@@ -85,7 +81,7 @@ impl FlameGraphGenerator {
         let mut svg = Vec::new();
         from_reader(&mut opts, reader, &mut svg).map_err(|e| miette::miette!(e))?;
 
-        Ok(String::from_utf8(svg).map_err(|e| miette::miette!(e))?)
+        String::from_utf8(svg).map_err(|e| miette::miette!(e))
     }
 
     pub fn write_collapsed_stack_file<P: AsRef<std::path::Path>>(

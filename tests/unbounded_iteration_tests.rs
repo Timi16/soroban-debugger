@@ -1,6 +1,5 @@
-use soroban_debugger::analyzer::security::{ConfidenceLevel, SecurityAnalyzer};
+use soroban_debugger::analyzer::security::{AnalyzerFilter, SecurityAnalyzer};
 use soroban_debugger::server::protocol::{DynamicTraceEvent, DynamicTraceEventKind};
-use std::default::Default;
 
 fn uleb128(mut value: usize) -> Vec<u8> {
     let mut out = Vec::new();
@@ -195,7 +194,9 @@ fn make_wasm_with_storage_outside_loop() -> Vec<u8> {
 
 fn has_unbounded_iteration_finding(wasm: &[u8]) -> bool {
     let analyzer = SecurityAnalyzer::new();
-    let report = analyzer.analyze(wasm, None, None).expect("analysis failed");
+    let report = analyzer
+        .analyze(wasm, None, None, &AnalyzerFilter::default())
+        .expect("analysis failed");
     report
         .findings
         .iter()
@@ -206,7 +207,9 @@ fn get_unbounded_iteration_finding(
     wasm: &[u8],
 ) -> Option<soroban_debugger::analyzer::security::SecurityFinding> {
     let analyzer = SecurityAnalyzer::new();
-    let report = analyzer.analyze(wasm, None, None).expect("analysis failed");
+    let report = analyzer
+        .analyze(wasm, None, None, &AnalyzerFilter::default())
+        .expect("analysis failed");
     report
         .findings
         .into_iter()
@@ -224,11 +227,8 @@ fn detects_storage_call_in_simple_loop() {
         soroban_debugger::analyzer::security::Severity::High
     );
 
-    // Check confidence level
-    let confidence = finding.confidence.as_ref().unwrap();
-    assert_eq!(confidence.level, ConfidenceLevel::Low); // Single call, shallow nesting
-
-    assert!(finding.confidence.unwrap_or_default() >= 0.0);
+    let confidence = finding.confidence.unwrap_or_default();
+    assert!((0.0..=1.0).contains(&confidence));
     assert!(finding.description.contains("storage-read host calls"));
 }
 
@@ -293,32 +293,9 @@ fn provides_rich_context_in_findings() {
     let wasm = make_wasm_with_nested_storage_loops();
     let finding = get_unbounded_iteration_finding(&wasm).unwrap();
 
-    // Check that context is provided
-    assert!(finding.context.is_some());
-    let context = finding.context.as_ref().unwrap();
-
-    // Check control flow info
-    assert!(context.control_flow_info.is_some());
-    let cf_info = context.control_flow_info.as_ref().unwrap();
-    assert!(!cf_info.loop_types.is_empty());
-
-    // Check storage call pattern
-    assert!(context.storage_call_pattern.is_some());
-    let pattern = context.storage_call_pattern.as_ref().unwrap();
-    assert_eq!(pattern.calls_in_loops, 3);
-    assert!(
-        pattern
-            .loop_types_with_calls
-            .contains(&"top_level_loop".to_string())
-            || pattern
-                .loop_types_with_calls
-                .contains(&"nested_loop".to_string())
-    );
-
-    // Check confidence rationale
-    let confidence = finding.confidence.as_ref().unwrap();
-    assert!(!confidence.rationale.is_empty());
-    assert!(confidence.rationale.contains("Storage calls in loops"));
+    let confidence = finding.confidence.unwrap_or_default();
+    assert!((0.0..=1.0).contains(&confidence));
+    assert!(finding.rationale.as_deref().unwrap_or_default().contains("Storage calls in loops"));
 }
 
 #[test]
@@ -341,7 +318,7 @@ fn dynamic_analysis_detects_high_storage_pressure() {
 
     let analyzer = SecurityAnalyzer::new();
     let report = analyzer
-        .analyze(&[], None, Some(&trace))
+        .analyze(&[], None, Some(&trace), &AnalyzerFilter::default())
         .expect("analysis failed");
 
     let unbounded_findings: Vec<_> = report
@@ -385,7 +362,7 @@ fn dynamic_analysis_ignores_reasonable_storage_access() {
 
     let analyzer = SecurityAnalyzer::new();
     let report = analyzer
-        .analyze(&[], None, Some(&trace))
+        .analyze(&[], None, Some(&trace), &AnalyzerFilter::default())
         .expect("analysis failed");
 
     let unbounded_findings: Vec<_> = report

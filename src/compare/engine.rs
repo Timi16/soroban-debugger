@@ -328,7 +328,7 @@ impl CompareEngine {
         out.push_str("═══════════════════════════════════════════════════════════════\n\n");
 
         // ── First Divergence Context ───────────────────────────────
-        Self::render_first_divergence(&report, &mut out);
+        Self::render_first_divergence(report, &mut out);
         out.push('\n');
 
         // ── Storage ────────────────────────────────────────────────
@@ -529,14 +529,26 @@ impl CompareEngine {
         match (flow_divergence, event_divergence) {
             (Some(f_idx), _) => {
                 out.push_str("  First meaningful divergence detected in Execution Flow:\n\n");
-                Self::render_diff_window(&report.flow_diff.diff_lines, f_idx, report.context_lines, out);
+                Self::render_diff_window(
+                    &report.flow_diff.diff_lines,
+                    f_idx,
+                    report.context_lines,
+                    out,
+                );
             }
             (None, Some(e_idx)) => {
                 out.push_str("  First meaningful divergence detected in Events:\n\n");
-                Self::render_diff_window(&report.event_diff.diff_lines, e_idx, report.context_lines, out);
+                Self::render_diff_window(
+                    &report.event_diff.diff_lines,
+                    e_idx,
+                    report.context_lines,
+                    out,
+                );
             }
             (None, None) => {
-                out.push_str("  (No direct sequence divergence found, check return values or storage)\n");
+                out.push_str(
+                    "  (No direct sequence divergence found, check return values or storage)\n",
+                );
             }
         }
     }
@@ -549,8 +561,7 @@ impl CompareEngine {
             out.push_str("    ...\n");
         }
 
-        for i in start..end {
-            let line = &lines[i];
+        for (i, line) in lines.iter().enumerate().take(end).skip(start) {
             let marker = if i == idx { ">" } else { " " };
             match line {
                 DiffLine::Same(s) => out.push_str(&format!("  {}   {}\n", marker, s)),
@@ -807,11 +818,14 @@ mod tests {
         let mut b = make_trace_a();
 
         // Introduce a difference in the middle of call sequence
-        b.call_sequence.insert(2, CallEntry {
-            function: "injected_call".to_string(),
-            args: None,
-            depth: 1,
-        });
+        b.call_sequence.insert(
+            2,
+            CallEntry {
+                function: "injected_call".to_string(),
+                args: None,
+                depth: 1,
+            },
+        );
 
         let report = CompareEngine::compare(&a, &b, 1);
         let rendered = CompareEngine::render_report(&report);
