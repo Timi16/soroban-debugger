@@ -201,6 +201,10 @@ export class SorobanDebugSession extends DebugSession {
           return Boolean(match?.verified && bp.functionName);
         })
       );
+      const syncMessage = syncErrors.size > 0
+        ? `${syncErrors.size} breakpoint sync error(s)`
+        : '';
+      const capabilityMessages = '';
 
       this.state.breakpoints.set(source, managedBreakpoints);
       this.sourceFunctionBreakpoints.set(
