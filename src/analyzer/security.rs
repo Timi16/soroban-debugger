@@ -649,6 +649,27 @@ struct FrameKey {
     call_depth: Option<u64>,
 }
 
+impl FrameKey {
+    /// Check whether two frame keys refer to the same logical call frame.
+    ///
+    /// `function` is treated as a strong signal when available. When the
+    /// runtime omits the function name, call depth is still used to correlate
+    /// events from the same frame.
+    fn matches(&self, other: &FrameKey) -> bool {
+        if let (Some(a), Some(b)) = (self.call_depth, other.call_depth) {
+            if a != b {
+                return false;
+            }
+        }
+
+        match (&self.function, &other.function) {
+            (Some(a), Some(b)) => a == b,
+            (None, None) => self.call_depth.is_some() && other.call_depth.is_some(),
+            _ => self.call_depth.is_some() && other.call_depth.is_some(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct PendingCrossCall {
     frame: Option<FrameKey>,
@@ -1374,7 +1395,7 @@ fn analyze_reentrancy_pattern_dynamic(trace: &[DynamicTraceEvent]) -> Vec<Securi
                 };
 
                 let same_frame = match (&pending.frame, &active_frame) {
-                    (Some(expected), Some(actual)) => expected == actual,
+                    (Some(expected), Some(actual)) => expected.matches(actual),
                     _ => false,
                 };
 
@@ -1441,7 +1462,7 @@ fn analyze_reentrancy_pattern_dynamic(trace: &[DynamicTraceEvent]) -> Vec<Securi
                 let frame = active_frame.clone();
                 let pre_call_write_seen = frame
                     .as_ref()
-                    .and_then(|key| writes_seen_by_frame.get(key).copied())
+                    .map(|key| find_writes_seen_by_frame(&writes_seen_by_frame, key))
                     .unwrap_or(0)
                     > 0;
 
@@ -1460,7 +1481,7 @@ fn analyze_reentrancy_pattern_dynamic(trace: &[DynamicTraceEvent]) -> Vec<Securi
                 let returning_frame = active_frame.clone();
                 if let Some(ref pending) = pending_cross_call {
                     let frames_match = match (&pending.frame, &returning_frame) {
-                        (Some(p), Some(r)) => p == r,
+                        (Some(p), Some(r)) => p.matches(r),
                         // If the return has no depth info, clear conservatively
                         (_, None) => true,
                         _ => false,
@@ -1484,11 +1505,32 @@ fn analyze_reentrancy_pattern_dynamic(trace: &[DynamicTraceEvent]) -> Vec<Securi
     findings
 }
 
+fn find_writes_seen_by_frame(
+    writes_seen_by_frame: &HashMap<FrameKey, usize>,
+    frame: &FrameKey,
+) -> usize {
+    if let Some(count) = writes_seen_by_frame.get(frame) {
+        return *count;
+    }
+
+    if frame.call_depth.is_some() {
+        writes_seen_by_frame
+            .iter()
+            .filter(|(key, _)| key.matches(frame))
+            .map(|(_, &count)| count)
+            .sum()
+    } else {
+        0
+    }
+}
+
 fn frame_key_for(entry: &DynamicTraceEvent) -> Option<FrameKey> {
-    let function = entry.function.clone()?;
+    if entry.function.is_none() && entry.call_depth.is_none() {
+        return None;
+    }
 
     Some(FrameKey {
-        function: Some(function),
+        function: entry.function.clone(),
         call_depth: entry.call_depth,
     })
 }
@@ -1844,6 +1886,89 @@ mod tests {
             "write in same frame after cross-contract call must be flagged"
         );
         assert_eq!(findings[0].rule_id, "reentrancy-pattern");
+    }
+
+    #[test]
+    fn frame_key_for_allows_call_depth_without_function() {
+        let event = DynamicTraceEvent {
+            sequence: 0,
+            kind: DynamicTraceEventKind::CrossContractCall,
+            message: String::new(),
+            caller: None,
+            function: None,
+            call_depth: Some(1),
+            storage_key: None,
+            storage_value: None,
+            address: None,
+        };
+
+        let frame = frame_key_for(&event).expect("expected frame key for call-depth-only event");
+        assert_eq!(frame.call_depth, Some(1));
+        assert!(frame.function.is_none());
+    }
+
+    #[test]
+    fn reentrancy_rule_matches_same_depth_when_cross_call_function_missing() {
+        let findings = analyze_reentrancy_pattern_dynamic(&[
+            DynamicTraceEvent {
+                sequence: 1,
+                kind: DynamicTraceEventKind::CrossContractCall,
+                message: "unknown frame call".to_string(),
+                caller: None,
+                function: None,
+                call_depth: Some(0),
+                storage_key: None,
+                storage_value: None,
+                address: None,
+            },
+            DynamicTraceEvent {
+                sequence: 2,
+                kind: DynamicTraceEventKind::StorageWrite,
+                message: "write balance".to_string(),
+                caller: None,
+                function: Some("withdraw".to_string()),
+                call_depth: Some(0),
+                storage_key: Some("balance:alice".to_string()),
+                storage_value: Some("0".to_string()),
+                address: None,
+            },
+        ]);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].rule_id, "reentrancy-pattern");
+        assert!(matches!(findings[0].severity, Severity::High));
+    }
+
+    #[test]
+    fn reentrancy_rule_matches_same_depth_when_write_function_missing() {
+        let findings = analyze_reentrancy_pattern_dynamic(&[
+            DynamicTraceEvent {
+                sequence: 1,
+                kind: DynamicTraceEventKind::CrossContractCall,
+                message: "withdraw invokes external".to_string(),
+                caller: None,
+                function: Some("withdraw".to_string()),
+                call_depth: Some(0),
+                storage_key: None,
+                storage_value: None,
+                address: None,
+            },
+            DynamicTraceEvent {
+                sequence: 2,
+                kind: DynamicTraceEventKind::StorageWrite,
+                message: "write balance".to_string(),
+                caller: None,
+                function: None,
+                call_depth: Some(0),
+                storage_key: Some("balance:alice".to_string()),
+                storage_value: Some("0".to_string()),
+                address: None,
+            },
+        ]);
+
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].rule_id, "reentrancy-pattern");
+        assert!(matches!(findings[0].severity, Severity::High));
     }
 
     // Pre-existing tests (unchanged)

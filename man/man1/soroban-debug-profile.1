@@ -4,7 +4,7 @@
 .SH NAME
 profile \- Profile a single function execution and print hotspots + suggestions
 .SH SYNOPSIS
-\fBprofile\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-\-expected\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBprofile\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-a\fR|\fB\-\-args\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-\-export\-format\fR] [\fB\-\-expected\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Profile a single function execution and print hotspots + suggestions
 .SH OPTIONS
@@ -23,6 +23,21 @@ Output file for the profile report (default: stdout)
 .TP
 \fB\-s\fR, \fB\-\-storage\fR \fI<STORAGE>\fR
 Initial storage state as JSON object
+.TP
+\fB\-\-export\-format\fR \fI<EXPORT_FORMAT>\fR [default: report]
+Export format for profiler output (report|folded\-stack|json)
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+report
+.IP \(bu 2
+folded\-stack
+.IP \(bu 2
+json
+.RE
 .TP
 \fB\-\-expected\-hash\fR \fI<EXPECTED_HASH>\fR
 Expected SHA\-256 hash of the WASM file. If provided, loading will fail if the computed hash does not match

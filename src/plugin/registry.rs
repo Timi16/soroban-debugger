@@ -1075,7 +1075,7 @@ impl PluginRegistry {
                 }
                 Err(err)
             }
-            Ok(Ok(value)) if meta.elapsed > meta.timeout => {
+            Ok(Ok(_value)) if meta.elapsed > meta.timeout => {
                 state.total_timeouts += 1;
                 state.total_failures += 1;
                 state.timeout_count += 1;

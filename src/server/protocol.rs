@@ -88,6 +88,7 @@ pub enum DynamicTraceEventKind {
     Authorization,
     CrossContractCall,
     CrossContractReturn,
+    Branch,
 }
 
 /// Rich dynamic trace entry produced by the runtime and consumed by analyzers.
@@ -145,6 +146,10 @@ pub enum DebugRequest {
         client_version: String,
         protocol_min: u32,
         protocol_max: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        heartbeat_interval_ms: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        idle_timeout_ms: Option<u32>,
     },
 
     /// Authenticate with the server
@@ -250,6 +255,10 @@ pub enum DebugResponse {
         protocol_min: u32,
         protocol_max: u32,
         selected_version: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        heartbeat_interval_ms: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        idle_timeout_ms: Option<u32>,
     },
 
     /// Handshake failed due to protocol mismatch.

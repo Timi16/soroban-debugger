@@ -3,13 +3,17 @@
 # Targets:
 #   regen-man   Regenerate all man pages from current CLI source
 #   check-man   Verify committed man pages match generated output (used in CI)
+#   test-man-tmpdir  Run portability tests for man page temp directory handling
 #   fmt         Check Rust formatting
-#   lint        Run Rust clippy lints
+#   lint        Run Rust clippy lints (strict)
+#   lint-strict Run Rust clippy with CI-equivalent strict flags
+#   hooks-install Install pre-commit hooks for local validation
+#   hooks-check  Run pre-commit hooks against all files
 #   test-rust   Run Rust backend tests
 #   test-vscode Run VS Code extension tests
 #   ci-local    Run all practical gates developers must satisfy before pushing
 
-.PHONY: all build fmt lint test-rust test-vscode ci-local clean regen-man check-man
+.PHONY: all build fmt lint lint-strict hooks-install hooks-check test-rust test-vscode ci-local clean regen-man check-man test-man-tmpdir
 
 all: build
 
@@ -20,8 +24,17 @@ build:
 fmt:
 	cargo fmt --all -- --check
 
+lint-strict:
+	cargo clippy --workspace --all-targets --all-features -- -D warnings
+
 lint:
-	cargo clippy --all-targets --all-features -- -D warnings
+	$(MAKE) lint-strict
+
+hooks-install:
+	pre-commit install
+
+hooks-check:
+	pre-commit run --all-files
 
 test-rust:
 	cargo test
@@ -38,8 +51,15 @@ regen-man:
 
 # Verify committed man pages match generated output.
 # Exits non-zero with a diff if drift is detected.
+# Environment: TMPDIR can be exported to override temp directory for restricted environments.
+#   Usage: export TMPDIR=/custom/tmp && make check-man
+#   or:    TMPDIR=/custom/tmp bash scripts/check_manpages.sh
 check-man:
 	@bash scripts/check_manpages.sh
+
+# Test portability of man page generation across different temp directory configurations.
+test-man-tmpdir:
+	@bash scripts/test_manpage_tmpdir.sh
 
 # The single local entrypoint for developers
 ci-local: fmt lint test-rust test-vscode check-man
@@ -47,19 +67,10 @@ ci-local: fmt lint test-rust test-vscode check-man
 	@echo "✅ All local CI gates passed successfully!"
 	@echo "======================================="
 
-# Sandbox-compatible test profile
-# Skips test cases requiring network loopback binding in constrained environments.
-test-rust-sandbox:
-	cargo test --workspace --all-features -- --skip "parity_dap_server|dap_server"
-
-ci-sandbox: fmt lint test-rust-sandbox test-vscode check-man
-	@echo "======================================="
-	@echo "✅ Sandbox CI gates passed successfully!"
-	@echo "======================================="
-
-# Optional target for running just the network-dependent tests (explicitly bounded behavior).
-test-rust-network:
-	cargo test --workspace --all-features parity_dap_server
+# Sandbox-safe local gate for restricted environments.
+# Runs deterministic checks and explicitly reports skipped network/temp-dependent gates.
+ci-sandbox:
+	@bash run_local_ci.sh --sandbox
 
 clean:
 	cargo clean

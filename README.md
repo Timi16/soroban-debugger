@@ -6,7 +6,7 @@
 
 A command-line debugger for Soroban smart contracts on the Stellar network. Debug your contracts interactively with breakpoints, step-through execution, state inspection, and budget tracking.
 
-Check out the [Getting Started Guide](https://github.com/Timi16/soroban-debugger/blob/main/docs/getting-started.md) to begin debugging in under 10 minutes, or see the [FAQ](https://github.com/Timi16/soroban-debugger/blob/main/docs/faq.md) for help with common issues.
+Check out the [Getting Started Guide](https://github.com/Timi16/soroban-debugger/blob/main/docs/getting-started.md) to begin debugging in under 10 minutes, see the [FAQ](https://github.com/Timi16/soroban-debugger/blob/main/docs/faq.md) for help with common issues, or refer to the [Troubleshooting Guide](https://github.com/Timi16/soroban-debugger/blob/main/docs/remote-troubleshooting.md) for environment-specific failures.
 For CI performance gating, see the [Benchmark Regression Policy](docs/performance-regressions.md).
 
 

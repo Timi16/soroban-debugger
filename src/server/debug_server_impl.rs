@@ -122,6 +122,8 @@ where
                 client_version,
                 protocol_min,
                 protocol_max,
+                heartbeat_interval_ms: _,
+                idle_timeout_ms: _,
             } = request
             {
                 match negotiate_protocol_version(protocol_min, protocol_max) {
@@ -135,6 +137,8 @@ where
                                 protocol_min: PROTOCOL_MIN_VERSION,
                                 protocol_max: PROTOCOL_MAX_VERSION,
                                 selected_version,
+                                heartbeat_interval_ms: None,
+                                idle_timeout_ms: None,
                             },
                         );
                         send_response(&mut writer, response).await?;

@@ -26,12 +26,19 @@ type DapEvent = {
 
 type DapMessage = DapResponse | DapEvent;
 
+export type TimestampedEvent = {
+  timestampMs: number;
+  event: string;
+  body?: any;
+};
+
 export class DapClient {
   private proc: ChildProcessWithoutNullStreams;
   private seq = 0;
   private stdoutBuffer: Buffer = Buffer.alloc(0);
   private pending = new Map<number, { resolve: (r: DapResponse) => void; reject: (e: Error) => void }>();
   private events: DapEvent[] = [];
+  private eventLog: TimestampedEvent[] = [];
 
   constructor(proc: ChildProcessWithoutNullStreams) {
     this.proc = proc;
@@ -116,6 +123,11 @@ export class DapClient {
     throw new Error(`Timed out waiting for DAP event(s): ${events.join(', ')}`);
   }
 
+  /** Returns a copy of all events received, with millisecond timestamps. */
+  getEventLog(): TimestampedEvent[] {
+    return this.eventLog.slice();
+  }
+
   dispose(): void {
     this.proc.kill();
   }
@@ -159,6 +171,7 @@ export class DapClient {
   private handleMessage(message: DapMessage): void {
     if (message.type === 'event') {
       this.events.push(message);
+      this.eventLog.push({ timestampMs: Date.now(), event: message.event, body: message.body });
       return;
     }
 

@@ -1,4 +1,5 @@
 use soroban_debugger::analyzer::security::{AnalyzerFilter, SecurityAnalyzer};
+use soroban_debugger::server::protocol::{DynamicTraceEvent, DynamicTraceEventKind};
 
 fn uleb128(mut value: usize) -> Vec<u8> {
     let mut out = Vec::new();
@@ -115,4 +116,42 @@ fn does_not_match_unrelated_import_names() {
 fn does_not_match_unrelated_modules() {
     let wasm = make_wasm_with_import("not_env", "invoke_contract");
     assert!(!has_cross_contract_import_finding(&wasm));
+}
+#[test]
+fn reentrancy_detection_handles_optional_function_metadata_with_depth() {
+    let wasm = vec![0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00];
+    let analyzer = SecurityAnalyzer::new();
+    let trace = vec![
+        DynamicTraceEvent {
+            sequence: 1,
+            kind: DynamicTraceEventKind::CrossContractCall,
+            message: "external call".to_string(),
+            caller: None,
+            function: None,
+            call_depth: Some(0),
+            storage_key: None,
+            storage_value: None,
+            address: None,
+        },
+        DynamicTraceEvent {
+            sequence: 2,
+            kind: DynamicTraceEventKind::StorageWrite,
+            message: "update state".to_string(),
+            caller: None,
+            function: Some("withdraw".to_string()),
+            call_depth: Some(0),
+            storage_key: Some("balance:alice".to_string()),
+            storage_value: Some("0".to_string()),
+            address: None,
+        },
+    ];
+
+    let report = analyzer
+        .analyze(&wasm, None, Some(&trace), &AnalyzerFilter::default())
+        .expect("analysis failed");
+
+    assert!(report
+        .findings
+        .iter()
+        .any(|f| f.rule_id == "reentrancy-pattern"));
 }

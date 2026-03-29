@@ -68,10 +68,7 @@ pub struct ScenarioBudgetAssertion {
 /// cycles (A includes B includes A) are detected and reported immediately.
 pub fn load_scenario(path: &Path, visiting: &mut HashSet<PathBuf>) -> Result<Vec<ScenarioStep>> {
     let canonical = path.canonicalize().map_err(|e| {
-        DebuggerError::FileError(format!(
-            "Cannot resolve scenario path {:?}: {}",
-            path, e
-        ))
+        DebuggerError::FileError(format!("Cannot resolve scenario path {:?}: {}", path, e))
     })?;
 
     if !visiting.insert(canonical.clone()) {

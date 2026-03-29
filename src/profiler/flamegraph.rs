@@ -138,6 +138,7 @@ mod tests {
                 wall_time_ms: 100,
                 operations: vec![],
                 storage_accesses: HashMap::new(),
+                call_tree: None,
             }],
             suggestions: vec![],
             total_cpu: 1000,

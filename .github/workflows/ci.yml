@@ -118,6 +118,7 @@ jobs:
       BENCH_SAMPLE_SIZE: 20
       BENCH_MEASUREMENT_TIME: 5
       BENCH_WARMUP_TIME: 2
+      BENCH_BASE_WORKTREE: /tmp/bench-base-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -128,6 +129,9 @@ jobs:
           toolchain: stable
 
       - uses: Swatinem/rust-cache@v2
+      
+      - name: Install critcmp
+        run: cargo install critcmp --version 0.1.7
 
       - name: Restore benchmark baseline (from default branch)
         if: github.event_name == 'pull_request'
@@ -149,17 +153,37 @@ jobs:
         run: cargo bench --benches -- --noplot --sample-size $BENCH_SAMPLE_SIZE --measurement-time $BENCH_MEASUREMENT_TIME --warm-up-time $BENCH_WARMUP_TIME
 
       - name: Add main branch worktree for baseline
-        run: git worktree add /tmp/bench-base main
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Preparing baseline worktree at: $BENCH_BASE_WORKTREE"
+          git worktree list --porcelain || true
+          git worktree add "$BENCH_BASE_WORKTREE" main
+          git worktree list --porcelain || true
 
       - name: Run benchmarks (baseline on main)
-        working-directory: /tmp/bench-base
+        working-directory: ${{ env.BENCH_BASE_WORKTREE }}
         env:
           CARGO_TARGET_DIR: ${{ github.workspace }}/target
         run: cargo bench -- --save-baseline base --noplot
 
       - name: Remove main branch worktree
         if: always()
-        run: git worktree remove --force /tmp/bench-base || true
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Cleaning baseline worktree at: $BENCH_BASE_WORKTREE"
+          git worktree list --porcelain || true
+
+          if git worktree remove --force "$BENCH_BASE_WORKTREE"; then
+            echo "Removed baseline worktree cleanly"
+          else
+            echo "worktree remove failed; running prune/remove fallback"
+            git worktree prune --expire now || true
+            rm -rf "$BENCH_BASE_WORKTREE" || true
+          fi
+
+          git worktree list --porcelain || true
       - name: Record current results (JSON)
         run: cargo run --quiet --bin bench-regression -- record --criterion target/criterion --out .bench/current.json
 
@@ -237,14 +261,8 @@ jobs:
           summary_json=$(cargo llvm-cov --workspace --all-features --json --summary-only 2>&1)
           echo "$summary_json"
 
-          # Extract line coverage; || true lets us emit a clear error instead of a raw jq failure
-          coverage=$(printf '%s' "$summary_json" | jq -r '.data[0].totals.lines.percent' 2>/dev/null || true)
-
-          if [ -z "$coverage" ] || [ "$coverage" = "null" ]; then
-            echo "ERROR: Failed to extract coverage from cargo-llvm-cov JSON output."
-            echo "Verify that 'cargo llvm-cov --json --summary-only' still emits .data[0].totals.lines.percent"
-            exit 1
-          fi
+          # Parse and validate required schema fields through the shared script helper.
+          coverage="$(printf '%s' "$summary_json" | bash scripts/check_benchmark_regressions.sh coverage-percent-from-json)"
 
           coverage_pct=$(printf "%.2f" "$coverage")
           echo "Current coverage: ${coverage_pct}%"
@@ -258,6 +276,10 @@ jobs:
           else
             echo "Coverage ${coverage_pct}% meets the required 50% threshold"
           fi
+
+      - name: Validate coverage parser on missing required field
+        shell: bash
+        run: bash scripts/check_benchmark_regressions.sh selftest-coverage-missing-field
       
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4

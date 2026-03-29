@@ -10,6 +10,7 @@ This page covers common questions, confusing behaviors, and troubleshooting tips
 - [Output and Trace](#output-and-trace)
 - [Argument Parsing](#argument-parsing)
 - [CLI vs VS Code Extension](#cli-vs-vs-code-extension---feature-differences)
+- [Local and CI Environment](#local-and-ci-environment)
 
 ---
 
@@ -78,19 +79,28 @@ soroban-debug interactive --contract my_contract.wasm
 **Answer:** Currently, the debugger supports setting breakpoints only at **function boundaries**.
 **Workaround:** Set a breakpoint at the function containing the line, then use `s` (step) or `n` (next) to reach the specific line you're interested in.
 
+### 10. Why does VS Code show `verified=false` but the breakpoint still hits?
+**Cause:** Source verification and runtime binding are different decisions in the adapter.
+**Meaning:**
+- `verified=false` means an exact source map proof was not available.
+- `setBreakpoint=true` means the adapter still bound a runtime function breakpoint.
+- `HEURISTIC_NO_DWARF` means DWARF source mapping was unavailable and the adapter used heuristic function mapping.
+
+**Example:** A breakpoint on `lib.rs:10` may return `verified=false` with `HEURISTIC_NO_DWARF`, yet still pause at runtime if that line is inside an exported entrypoint function.
+
 ---
 
 ## Budget
 
-### 10. Why am I getting "Warning: High CPU usage detected"?
+### 11. Why am I getting "Warning: High CPU usage detected"?
 **Cause:** The contract has consumed a significant portion of the Soroban CPU budget.
 **Fix:** Optimize expensive loops, reduce deep recursion, or minimize complex storage operations. Use the `budget` command in interactive mode to see which parts of your code are the most "expensive".
 
-### 11. "Budget exceeded" error during debugging
+### 12. "Budget exceeded" error during debugging
 **Cause:** The execution hit the maximum allowed Soroban resource limits.
 **Fix:** Check for infinite loops or extremely inefficient algorithms. You can also try to provide a larger initial budget if your local environment allows (though on-chain limits will still apply).
 
-### 12. Debugger budget numbers don't match exactly with on-chain execution
+### 13. Debugger budget numbers don't match exactly with on-chain execution
 **Cause:** The debugger environment might have slight overhead or use a different version of the Soroban host than the network you are targeting.
 **Fix:** Use budget numbers as a relative guide for optimization rather than an absolute guarantee for on-chain costs.
 
@@ -98,18 +108,18 @@ soroban-debug interactive --contract my_contract.wasm
 
 ## Argument Parsing
 
-### 13. My JSON arguments are failing to parse
+### 14. My JSON arguments are failing to parse
 **Cause:** Shell quoting issues are common. If your JSON contains double quotes, the shell might be stripping them.
 **Fix:** Wrap the entire JSON string in single quotes:
 ```bash
 soroban-debug run --args '["Alice", "Bob", 100]'
 ```
 
-### 14. Error: "Type/value mismatch: expected u32 but got 5000000000"
+### 15. Error: "Type/value mismatch: expected u32 but got 5000000000"
 **Cause:** The value provided exceeds the range of the target type (e.g., `u32` max is ~4.29 billion).
 **Fix:** Ensure your input fits within the specified type, or use a larger type like `u64` or `i128` (default).
 
-### 15. How do I pass a Soroban Address as an argument?
+### 16. How do I pass a Soroban Address as an argument?
 **Answer:** Use the explicit type annotation for addresses.
 **Fix:**
 ```json
@@ -121,14 +131,14 @@ Or, if it's a 56-character string starting with 'C' or 'G', the debugger will of
 
 ## Output and Trace
 
-### 16. The trace file is too large and hard to read
+### 17. The trace file is too large and hard to read
 **Cause:** Exporting every storage change and event can lead to huge JSON files.
 **Fix:** Use `--storage-filter` to only include the keys you care about in the output, which will also reduce the trace size.
 ```bash
 soroban-debug run --trace-output trace.json --storage-filter 'balance:*'
 ```
 
-### 17. The terminal output looks garbled or has weird characters
+### 18. The terminal output looks garbled or has weird characters
 **Cause:** Your terminal might not support Unicode box-drawing characters or ANSI colors.
 **Fix:** Use the `--no-unicode` flag and set the `NO_COLOR=1` environment variable:
 ```bash
@@ -139,7 +149,7 @@ NO_COLOR=1 soroban-debug run --no-unicode ...
 
 ## CLI vs VS Code Extension - Feature Differences
 
-### 18. A feature works in the CLI but is not available in the VS Code extension (or vice versa)
+### 19. A feature works in the CLI but is not available in the VS Code extension (or vice versa)
 
 **Answer:** The CLI and the VS Code extension do not have full feature parity. The CLI exposes the complete debugger surface; the extension exposes a focused subset via the Debug Adapter Protocol (DAP).
 
@@ -156,13 +166,13 @@ Key asymmetries at a glance:
 - Use the **VS Code extension** for a visual IDE experience: set breakpoints by clicking, inspect variables in the sidebar, navigate the call stack with keyboard shortcuts.
 - Use the **CLI** for full debugging power: instruction-level stepping, storage filtering, auth analysis, batch runs, remote/CI scenarios, and any of the analysis subcommands.
 
-### 19. The VS Code extension shows all storage keys but I only want to see a subset
+### 20. The VS Code extension shows all storage keys but I only want to see a subset
 
 **Cause:** Storage filtering via `--storage-filter` is not exposed in the extension's launch configuration. All storage keys are shown unfiltered in the Variables panel.
 
 **Workaround:** Either run `soroban-debug run --storage-filter '<pattern>'` from the terminal to get a targeted view, or use `snapshotPath` in `launch.json` to provide a pre-filtered initial storage state. See the [Feature Matrix — Storage Filters](feature-matrix.md#storage-filters) for details.
 
-### 20. I want to debug a contract on a remote server from VS Code
+### 21. I want to debug a contract on a remote server from VS Code
 
 **Cause:** The VS Code extension only connects to a debug server it spawns locally as a subprocess. The `soroban-debug remote` client mode is not exposed through the extension.
 
@@ -182,7 +192,7 @@ For full remote debugging documentation, see [Remote Debugging](remote-debugging
 
 ## History Retention
 
-### 21. The history file keeps growing. How do I limit it?
+### 22. The history file keeps growing. How do I limit it?
 
 **Cause:** `soroban-debug` appends one record per `run` invocation. Without a configured limit the history file grows indefinitely.
 
@@ -201,7 +211,7 @@ The pruning happens atomically during the append — the same tmp-file-rename me
 
 ---
 
-### 22. How do I drop records that are older than a certain number of days?
+### 23. How do I drop records that are older than a certain number of days?
 
 Use `--history-max-age-days` (or `SOROBAN_DEBUG_HISTORY_MAX_AGE_DAYS`):
 
@@ -225,7 +235,7 @@ soroban-debug \
 
 ---
 
-### 23. How do I prune or compact the history file without running a contract?
+### 24. How do I prune or compact the history file without running a contract?
 
 Use the `history-prune` subcommand:
 
@@ -255,7 +265,7 @@ soroban-debug --history-file /path/to/custom-history.json history-prune --max-re
 
 ---
 
-### 24. Which records are kept when `--history-max-records` is used?
+### 25. Which records are kept when `--history-max-records` is used?
 
 The **newest** N records (by their parsed `date` field, sorted chronologically) are kept; the oldest are removed. This preserves deterministic ordering for `--budget-trend` regression analysis.
 
@@ -265,7 +275,7 @@ Records whose `date` field cannot be parsed are **kept** rather than silently dr
 
 ## Error Hints and JSON Output
 
-### 25. How do I interpret standardized error hints?
+### 26. How do I interpret standardized error hints?
 
 The Soroban Debugger provides standardized remediation hints for most common failures. When an error like an incorrect WASM path or a bad port connection occurs, the debugger will print an actionable diagnostic:
 
@@ -290,3 +300,10 @@ If you specify `--json` or set `SOROBAN_DEBUG_JSON=1`, these hints are also secu
 }
 ```
 
+---
+
+## Local and CI Environment
+
+### 27. I'm getting `listen EPERM` or `mktemp` failures in my CI environment
+**Answer:** These are often caused by environment restrictions in sandboxed CI runners or missing permissions for temp directories.
+**Fix:** See the [Local and CI Sandbox Failures](remote-troubleshooting.md#local-and-ci-sandbox-failures) section in the troubleshooting guide for a matrix of common failures and their fixes.

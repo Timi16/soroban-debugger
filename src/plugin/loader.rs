@@ -435,29 +435,231 @@ impl Drop for LoadedPlugin {
     }
 }
 
+
+
+#[cfg(test)]
+impl LoadedPlugin {
+    pub(crate) fn from_parts_for_tests(
+        plugin: Box<dyn InspectorPlugin>,
+        path: PathBuf,
+        manifest: PluginManifest,
+        trust: PluginTrustAssessment,
+    ) -> Self {
+        Self {
+            plugin,
+            library: None,
+            path,
+            manifest,
+            trust,
+        }
 /// Checks if the plugin API version matches the host's expected version.
 pub fn check_api_version(plugin_version: u32) -> Result<(), crate::plugin::api::PluginError> {
     use crate::plugin::api::{PluginError, PLUGIN_API_VERSION};
     if plugin_version != PLUGIN_API_VERSION {
         return Err(PluginError::VersionMismatch {
-            required: PLUGIN_API_VERSION.to_string(),
-            found: plugin_version.to_string(),
+            expected: PLUGIN_API_VERSION,
+            found: plugin_version,
         });
     }
     Ok(())
 }
 
 #[cfg(test)]
+mod tests {
+    use super::super::manifest::PluginSignature;
 mod version_tests {
     use super::*;
+    use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+    use base64::Engine;
+    use ed25519_dalek::{Signer, SigningKey};
+    use std::collections::BTreeSet;
+    use std::path::Path;
+
+    fn base_manifest(name: &str) -> PluginManifest {
+        PluginManifest {
+            name: name.to_string(),
+            version: "1.0.0".to_string(),
+            description: "test plugin".to_string(),
+            author: "test".to_string(),
+            license: Some("MIT".to_string()),
+            min_debugger_version: Some("0.1.0".to_string()),
+            capabilities: Default::default(),
+            library: "plugin.so".to_string(),
+            dependencies: vec![],
+            signature: None,
+        }
+    }
+
+    fn sign_manifest(
+        mut manifest: PluginManifest,
+        signer_name: &str,
+        seed: u8,
+        library_bytes: &[u8],
+    ) -> PluginManifest {
+        let signing_key = SigningKey::from_bytes(&[seed; 32]);
+        let verifying_key = signing_key.verifying_key();
+        let manifest_payload = manifest.canonical_manifest_payload().unwrap();
+        let manifest_signature = signing_key.sign(&manifest_payload);
+        let library_signature = signing_key.sign(library_bytes);
+        manifest.signature = Some(PluginSignature {
+            signer: signer_name.to_string(),
+            public_key: BASE64_STANDARD.encode(verifying_key.to_bytes()),
+            manifest_signature: BASE64_STANDARD.encode(manifest_signature.to_bytes()),
+            library_signature: BASE64_STANDARD.encode(library_signature.to_bytes()),
+        });
+        manifest
+    }
     use crate::plugin::api::{PluginError, PLUGIN_API_VERSION};
 
     #[test]
+    fn test_default_plugin_dir() {
+        let dir = PluginLoader::default_plugin_dir();
+        assert!(dir.is_ok());
+
+        let path = dir.unwrap();
+        assert!(path.ends_with(".soroban-debug/plugins"));
+    }
     fn test_api_version_check() {
         let result = check_api_version(999);
         assert!(matches!(result, Err(PluginError::VersionMismatch { .. })));
 
+    #[test]
+    fn test_loader_creation() {
+        let temp_dir = std::env::temp_dir();
+        let loader = PluginLoader::new(temp_dir.clone());
+        assert_eq!(loader.plugin_dir, temp_dir);
+    }
+
+    /// `discover_plugins` must return paths in sorted order so that repeated
+    /// calls on the same directory yield the same sequence regardless of the
+    /// order the OS returns directory entries.
+    #[test]
+    fn discover_plugins_returns_sorted_paths() {
+        use std::fs;
+
+        let base = std::env::temp_dir().join("soroban-loader-sort-test");
+        let _ = fs::remove_dir_all(&base);
+
+        // Create three plugin sub-directories in reverse alphabetical order so
+        // a naive read_dir would likely return them unsorted.
+        //............
+        for name in &["plugin-c", "plugin-a", "plugin-b"] {
+            let dir = base.join(name);
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("plugin.toml"), "").unwrap();
+        }
+
+        let loader = PluginLoader::new(base.clone());
+        let paths = loader.discover_plugins();
+
+        let names: Vec<&str> = paths
+            .iter()
+            .filter_map(|p| p.parent()?.file_name()?.to_str())
+            .collect();
+
+        assert_eq!(names, vec!["plugin-a", "plugin-b", "plugin-c"]);
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn trust_policy_warns_but_allows_unsigned_plugins_by_default() {
+        let loader = PluginLoader::with_trust_policy(
+            std::env::temp_dir(),
+            PluginTrustPolicy {
+                mode: PluginTrustMode::Warn,
+                allowlist: BTreeSet::new(),
+                denylist: BTreeSet::new(),
+                allowed_signers: BTreeSet::new(),
+            },
+        );
+        let manifest = base_manifest("unsigned-plugin");
+
+        let assessment = loader
+            .assess_trust(&manifest, Path::new("unsigned-plugin.so"), b"library")
+            .expect("warn mode should allow unsigned plugin");
+
+        assert!(!assessment.trusted);
+        assert!(!assessment.warnings.is_empty());
+    }
+
+    #[test]
+    fn trust_policy_blocks_unsigned_plugins_in_enforce_mode() {
+        let loader = PluginLoader::with_trust_policy(
+            std::env::temp_dir(),
+            PluginTrustPolicy {
+                mode: PluginTrustMode::Enforce,
+                allowlist: BTreeSet::new(),
+                denylist: BTreeSet::new(),
+                allowed_signers: BTreeSet::new(),
+            },
+        );
+        let manifest = base_manifest("unsigned-plugin");
+
+        let err = loader
+            .assess_trust(&manifest, Path::new("unsigned-plugin.so"), b"library")
+            .unwrap_err();
+        assert!(
+            matches!(err, PluginError::TrustViolation(message) if message.contains("unsigned") || message.contains("signature"))
+        );
+    }
+
+    #[test]
+    fn trust_policy_blocks_denylisted_plugins() {
+        let mut denylist = BTreeSet::new();
+        denylist.insert("blocked-plugin".to_string());
+        let loader = PluginLoader::with_trust_policy(
+            std::env::temp_dir(),
+            PluginTrustPolicy {
+                mode: PluginTrustMode::Warn,
+                allowlist: BTreeSet::new(),
+                denylist,
+                allowed_signers: BTreeSet::new(),
+            },
+        );
+
+        let err = loader
+            .assess_trust(
+                &base_manifest("blocked-plugin"),
+                Path::new("blocked.so"),
+                b"library",
+            )
+            .unwrap_err();
+        assert!(
+            matches!(err, PluginError::TrustViolation(message) if message.contains("denied by policy"))
+        );
+    }
+
+    #[test]
+    fn trust_policy_accepts_valid_signed_plugins_from_allowed_signer() {
+        let library_bytes = b"signed library";
+        let manifest = sign_manifest(
+            base_manifest("signed-plugin"),
+            "trusted-signer",
+            9,
+            library_bytes,
+        );
+        let mut allowed_signers = BTreeSet::new();
+        allowed_signers.insert("trusted-signer".to_string());
+        let loader = PluginLoader::with_trust_policy(
+            std::env::temp_dir(),
+            PluginTrustPolicy {
+                mode: PluginTrustMode::Enforce,
+                allowlist: BTreeSet::new(),
+                denylist: BTreeSet::new(),
+                allowed_signers,
+            },
+        );
+
+        let assessment = loader
+            .assess_trust(&manifest, Path::new("signed.so"), library_bytes)
+            .expect("trusted signed plugin should load");
+
+        assert!(assessment.trusted);
+        assert!(assessment.warnings.is_empty());
+        assert_eq!(
+            assessment.signer.as_ref().map(|s| s.signer.as_str()),
+            Some("trusted-signer")
+        );
         let result_ok = check_api_version(PLUGIN_API_VERSION);
         assert!(result_ok.is_ok());
-    }
-}

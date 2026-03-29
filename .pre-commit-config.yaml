@@ -10,11 +10,11 @@ repos:
         pass_filenames: false
 
       - id: cargo-clippy
-        name: cargo clippy
-        description: Lint rust sources
+        name: cargo clippy strict
+        description: Lint Rust sources with CI-equivalent strict settings.
         entry: cargo clippy
         language: system
-        args: ["--", "-D", "warnings"]
+        args: ["--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"]
         types: [rust]
         pass_filenames: false
 

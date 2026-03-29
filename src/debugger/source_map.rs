@@ -39,6 +39,12 @@ pub struct SourceLocation {
 }
 
 /// A diagnostic message indicating an issue with loading DWARF debug metadata.
+///
+/// # Diagnostic construction style
+///
+/// - Static messages (no runtime values): use `"text".to_string()`.
+/// - Dynamic messages (interpolated values): use `format!("text {}", value)`.
+/// - Never use `format!("static string")` — this triggers `clippy::useless_format`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SourceMapDiagnostic {
     pub message: String,

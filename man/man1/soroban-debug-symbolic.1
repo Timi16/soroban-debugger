@@ -4,7 +4,7 @@
 .SH NAME
 symbolic \- Run symbolic execution to explore contract input space
 .SH SYNOPSIS
-\fBsymbolic\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-profile\fR] [\fB\-\-input\-combination\-cap\fR] [\fB\-\-path\-cap\fR] [\fB\-\-max\-breadth\fR] [\fB\-\-timeout\fR] [\fB\-\-seed\fR] [\fB\-\-replay\fR] [\fB\-\-storage\-seed\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBsymbolic\fR <\fB\-c\fR|\fB\-\-contract\fR> <\fB\-f\fR|\fB\-\-function\fR> [\fB\-o\fR|\fB\-\-output\fR] [\fB\-\-profile\fR] [\fB\-\-input\-combination\-cap\fR] [\fB\-\-path\-cap\fR] [\fB\-\-max\-breadth\fR] [\fB\-\-timeout\fR] [\fB\-\-seed\fR] [\fB\-\-replay\fR] [\fB\-\-storage\-seed\fR] [\fB\-\-format\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Run symbolic execution to explore contract input space
 .SH OPTIONS
@@ -53,6 +53,19 @@ Replay a previous symbolic run by providing its replay token (the seed value pri
 .TP
 \fB\-\-storage\-seed\fR \fI<FILE>\fR
 Path to a JSON file containing initial storage state to seed before symbolic exploration. This allows testing how different storage states affect contract behavior. The JSON should be a map of key\-value pairs
+.TP
+\fB\-\-format\fR \fI<FORMAT>\fR [default: pretty]
+Output format for the report (pretty/text or json)
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+pretty
+.IP \(bu 2
+json
+.RE
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

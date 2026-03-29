@@ -90,6 +90,28 @@ fn symbolic_cli_honors_caps_and_reports_truncation() {
 }
 
 #[test]
+fn symbolic_json_outputs_path_decisions() {
+    let wasm = fixture_wasm("counter");
+
+    base_cmd()
+        .args([
+            "symbolic",
+            "--contract",
+            wasm.to_str().unwrap(),
+            "--function",
+            "increment",
+            "--format",
+            "json",
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"status\": \"success\""))
+        .stdout(predicate::str::contains("\"kind\": \"StorageWrite\""))
+        .stdout(predicate::str::contains("\"kind\": \"StorageRead\""))
+        .stdout(predicate::str::contains("\"path_decisions\": ["));
+}
+
+#[test]
 fn analyze_json_outputs_findings_array() {
     let wasm = fixture_wasm("counter");
 

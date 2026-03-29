@@ -121,8 +121,15 @@ pub enum RuntimeError {
 impl std::fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RuntimeError::Timeout { elapsed_ms, limit_ms } => {
-                write!(f, "Execution timed out after {}ms (limit: {}ms)", elapsed_ms, limit_ms)
+            RuntimeError::Timeout {
+                elapsed_ms,
+                limit_ms,
+            } => {
+                write!(
+                    f,
+                    "Execution timed out after {}ms (limit: {}ms)",
+                    elapsed_ms, limit_ms
+                )
             }
             RuntimeError::Cancelled { reason } => {
                 write!(f, "Execution cancelled: {}", reason)
@@ -134,12 +141,17 @@ impl std::fmt::Display for RuntimeError {
 impl RuntimeError {
     /// Create a timeout error with elapsed and limit durations.
     pub fn timeout(elapsed_ms: u64, limit_ms: u64) -> Self {
-        Self::Timeout { elapsed_ms, limit_ms }
+        Self::Timeout {
+            elapsed_ms,
+            limit_ms,
+        }
     }
 
     /// Create a cancellation error with a reason.
     pub fn cancelled(reason: impl Into<String>) -> Self {
-        Self::Cancelled { reason: reason.into() }
+        Self::Cancelled {
+            reason: reason.into(),
+        }
     }
 
     /// Returns true if this error is a timeout.

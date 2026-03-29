@@ -79,6 +79,34 @@ Use these launch settings when the adapter is healthy but the backend is slow:
 - If both CLI and VS Code fail to reach `localhost`, suspect loopback/firewall/container policy first.
 - If the CLI can connect but VS Code cannot, compare `binaryPath`, launch settings, and adapter logs before changing server settings.
 
+## Sandboxed / CI Environments
+
+Some CI runners, containers, and restricted desktops block loopback TCP
+(`127.0.0.1`) at the OS level.  Attempts to `bind` or `connect` on these
+platforms return `EPERM` (permission denied) rather than a networking error.
+
+**Test skip behaviour**
+
+Tests that require loopback networking check for this condition at startup and
+emit a skip message instead of failing hard:
+
+```
+⚠️  Loopback bind check failed: EPERM – loopback networking is not permitted
+    in this environment (sandbox or container restriction).
+Skipping <test-name>: loopback networking restricted (EPERM or equivalent) –
+    see docs/remote-troubleshooting.md.
+```
+
+A skipped test is **not a failure** — it means the test cannot run in the
+current environment.  If you see this on a machine where loopback should work,
+check:
+
+- Container port-publishing rules (`-p 127.0.0.1:PORT:PORT` or equivalent).
+- Seccomp / AppArmor / SELinux profiles that deny `bind`/`connect` syscalls.
+- CI sandbox policies (e.g. GitHub Actions with restricted network access).
+- Whether the test runner itself is running inside a Docker-in-Docker context
+  that does not share the host loopback interface.
+
 ## Recommended Escalation Order
 
 1. Verify the server is running and reachable on the expected host and port.
@@ -86,3 +114,38 @@ Use these launch settings when the adapter is healthy but the backend is slow:
 3. Increase the narrowest timeout that matches the failing request.
 4. Enable CLI verbose logging or VS Code trace logging.
 5. Only after that, broaden global timeouts or retry windows.
+
+## Local and CI Sandbox Failures
+
+These failures typically occur due to permission restrictions or environment configuration in CI runners, Nix shells, or local sandboxes.
+
+### Restricted Environments and `ci-sandbox`
+
+If you are running local checks in CI containers, hardened desktops, or other restricted environments, use the sandbox-safe local gate:
+
+```bash
+make ci-sandbox
+```
+
+What this does:
+
+- Runs deterministic Rust checks (`fmt`, `clippy`, `test`) in a predictable order.
+- Exits successfully when those checks pass.
+- Explicitly reports skipped gates that depend on local loopback networking or writable temp-dir behavior.
+
+Use `ci-local` when your environment has full local networking and temp-dir support; use `ci-sandbox` when it does not.
+
+### Troubleshooting Matrix
+
+| Symptom | Likely cause | What to try |
+| --- | --- | --- |
+| `listen EPERM` | Local network binding is restricted | Run in a non-sandboxed environment or skip network tests using `cargo test -- --skip remote_run_tests`. |
+| `mktemp` failure | Restricted `/tmp` or missing write permissions | Override the temp directory by setting `export TMPDIR=$(pwd)/.tmp` (ensure the target exists). |
+| `Permission denied` on `/var/...` | Fixed paths in scripts not honoring `TMPDIR` | Verify the script honors the `TMPDIR` environment variable and provide a writable alternative. |
+| Socket bind timeout | Fixed port collision or loopback restriction | Prefer tests using ephemeral ports (port 0) or check if another process is using a fixed port like 9245. |
+
+### CI Environment Checklist
+
+- **`TMPDIR`**: Ensure this points to a writable directory within your runner's workspace.
+- **Network Policy**: Verify that `127.0.0.1` is available and binding to ports is permitted.
+- **Profiles**: Use `make ci-local` locally to match GitHub Action ordering and automated gates.

@@ -219,6 +219,33 @@ impl ReplExecutor {
     pub fn remove_breakpoint(&mut self, function: &str) -> bool {
         self.engine.breakpoints_mut().remove(function)
     }
+
+    pub fn display_functions(&self) -> Result<()> {
+        crate::logging::log_display("", crate::logging::LogLevel::Info);
+        crate::logging::log_display("=== Contract Functions ===", crate::logging::LogLevel::Info);
+        let id = self.engine.executor().contract_address();
+        crate::logging::log_display(format!("Address: {:?}", id), crate::logging::LogLevel::Info);
+        crate::logging::log_display("", crate::logging::LogLevel::Info);
+
+        let mut sigs: Vec<_> = self.signatures.values().collect::<Vec<_>>();
+        sigs.sort_by_key(|s| s.name.clone());
+
+        for sig in sigs {
+            let params: Vec<String> = sig
+                .params
+                .iter()
+                .map(|p| format!("{}: {}", p.name, p.type_name))
+                .collect();
+            let ret = sig.return_type.as_deref().unwrap_or("()");
+            crate::logging::log_display(
+                format!("  {}({}) -> {}", sig.name, params.join(", "), ret),
+                crate::logging::LogLevel::Info,
+            );
+        }
+        crate::logging::log_display("", crate::logging::LogLevel::Info);
+
+        Ok(())
+    }
 }
 
 fn parse_repl_arg(arg: &str) -> Result<Value> {

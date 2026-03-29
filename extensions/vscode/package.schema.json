@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "./package.schema.json",
+  "title": "Local fallback schema for VS Code extension package.json",
+  "description": "Fallback schema to avoid network-dependent schema fetch failures in offline environments.",
+  "type": "object",
+  "additionalProperties": true
+}

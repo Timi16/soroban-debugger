@@ -238,7 +238,6 @@ The following features are **not available** in the extension.
 | Storage key filtering       | `--storage-filter <pattern>`                                                                   | All storage is shown unfiltered in the Variables panel; filter via CLI |
 | Auth tree display           | `--show-auth`                                                                                  | Use `soroban-debug run --show-auth` in a terminal                      |
 | Batch execution             | `--batch-args <file>`, `--repeat N`                                                            | Use `soroban-debug run --batch-args` in a terminal                     |
-| Remote client mode          | `soroban-debug remote --remote host:port`                                                      | Use CLI; see [Remote Debugging](../../docs/remote-debugging.md)        |
 | TLS configuration           | `--tls-cert`, `--tls-key`                                                                      | Use CLI server/remote commands directly                                |
 | Storage export              | `--export-storage <file>`                                                                      | Use `soroban-debug run --export-storage` in a terminal                 |
 | Storage import              | `--import-storage <file>`                                                                      | Use `snapshotPath` in `launch.json` for initial state                  |
@@ -263,6 +262,46 @@ The following features are **not available** in the extension.
 | Expression evaluation           | Debug Console when paused; hover evaluation over identifiers                      |
 
 For the full feature comparison, see [docs/feature-matrix.md](../../docs/feature-matrix.md).
+
+---
+
+## Attach Mode (Remote Debugging)
+
+The extension supports attaching to an already-running `soroban-debug server` process, whether it is local or on a remote host.
+
+### Starting the server (CLI)
+
+```bash
+soroban-debug server \
+  --port 2345 \
+  --token my-secret-token
+```
+
+### Attach configuration (`launch.json`)
+
+```json
+{
+  "name": "Soroban: Attach to Remote Debugger",
+  "type": "soroban",
+  "request": "attach",
+  "host": "192.168.1.10",
+  "port": 2345,
+  "contractPath": "${workspaceFolder}/target/wasm32-unknown-unknown/release/contract.wasm",
+  "entrypoint": "main",
+  "args": [],
+  "token": "my-secret-token"
+}
+```
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `host` | No (default `127.0.0.1`) | Hostname or IP of the running server |
+| `port` | Yes | TCP port the server is listening on |
+| `contractPath` | Yes | Path to the contract WASM on the local machine |
+| `token` | No | Auth token if the server was started with `--token` |
+| `connectTimeoutMs` | No | How long to wait for the server to respond (default 10 000 ms) |
+
+> Security note: when connecting over a non-loopback network, run the server behind an SSH tunnel or a VPN. The wire protocol does not include TLS.
 
 ---
 

@@ -4,7 +4,7 @@
 .SH NAME
 remote \- Connect to remote debug server
 .SH SYNOPSIS
-\fBremote\fR <\fB\-r\fR|\fB\-\-remote\fR> [\fB\-t\fR|\fB\-\-token\fR] [\fB\-c\fR|\fB\-\-contract\fR] [\fB\-f\fR|\fB\-\-function\fR] [\fB\-a\fR|\fB\-\-args\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBremote\fR <\fB\-r\fR|\fB\-\-remote\fR> [\fB\-t\fR|\fB\-\-token\fR] [\fB\-c\fR|\fB\-\-contract\fR] [\fB\-f\fR|\fB\-\-function\fR] [\fB\-a\fR|\fB\-\-args\fR] [\fB\-\-tls\-cert\fR] [\fB\-\-tls\-key\fR] [\fB\-\-tls\-ca\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Connect to remote debug server
 .SH OPTIONS
@@ -23,6 +23,15 @@ Function name to execute
 .TP
 \fB\-a\fR, \fB\-\-args\fR \fI<ARGS>\fR
 Function arguments as JSON array
+.TP
+\fB\-\-tls\-cert\fR \fI<TLS_CERT>\fR
+Path to the client TLS certificate
+.TP
+\fB\-\-tls\-key\fR \fI<TLS_KEY>\fR
+Path to the client TLS private key
+.TP
+\fB\-\-tls\-ca\fR \fI<TLS_CA>\fR
+Path to the CA certificate for server verification
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

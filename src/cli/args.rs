@@ -41,6 +41,15 @@ pub enum OutputFormat {
     Json,
 }
 
+/// Export format for profiler output (issue #502).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
+pub enum ProfileExportFormat {
+    #[default]
+    Report,
+    FoldedStack,
+    Json,
+}
+
 /// Format for dependency graph output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum GraphFormat {
@@ -926,6 +935,11 @@ pub struct ProfileArgs {
     /// Initial storage state as JSON object
     #[arg(short, long)]
     pub storage: Option<String>,
+
+    /// Export format for profiler output (report|folded-stack|json)
+    #[arg(long, value_enum, default_value_t = ProfileExportFormat::Report)]
+    pub export_format: ProfileExportFormat,
+
     /// Expected SHA-256 hash of the WASM file. If provided, loading will fail if the computed hash does not match.
     #[arg(long)]
     pub expected_hash: Option<String>,
@@ -987,6 +1001,10 @@ pub struct SymbolicArgs {
     /// affect contract behavior. The JSON should be a map of key-value pairs.
     #[arg(long, value_name = "FILE")]
     pub storage_seed: Option<PathBuf>,
+
+    /// Output format for the report (pretty/text or json)
+    #[arg(long, value_enum, default_value_t = OutputFormat::Pretty)]
+    pub format: OutputFormat,
 }
 
 #[derive(Parser)]
@@ -1029,6 +1047,14 @@ pub struct ServerArgs {
     /// TLS private key file path (optional)
     #[arg(long)]
     pub tls_key: Option<PathBuf>,
+
+    /// Repeat execution N times and show throughput/latency stats
+    #[arg(long, value_name = "N")]
+    pub repeat: Option<u32>,
+
+    /// Filter storage view to only show keys matching pattern (repeatable)
+    #[arg(long, value_name = "PATTERN")]
+    pub storage_filter: Vec<String>,
 }
 
 #[derive(Parser)]
@@ -1048,6 +1074,18 @@ pub struct RemoteArgs {
     /// Function name to execute
     #[arg(short, long)]
     pub function: Option<String>,
+
+    /// TLS certificate file path (optional)
+    #[arg(long)]
+    pub tls_cert: Option<PathBuf>,
+
+    /// TLS private key file path (optional)
+    #[arg(long)]
+    pub tls_key: Option<PathBuf>,
+
+    /// TLS CA certificate file path (optional, for self-signed certs)
+    #[arg(long)]
+    pub tls_ca: Option<PathBuf>,
 
     /// Function arguments as JSON array
     #[arg(short, long)]

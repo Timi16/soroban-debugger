@@ -269,6 +269,10 @@ impl ReplSession {
                 }
                 Ok(false)
             }
+            ReplCommand::Functions => {
+                self.executor.display_functions()?;
+                Ok(false)
+            }
         }
     }
 
@@ -316,6 +320,10 @@ impl ReplSession {
         tracing::info!(
             "  {} <func>         Clear a specific breakpoint",
             Formatter::info("clear-break")
+        );
+        tracing::info!(
+            "  {}                 Show available contract functions",
+            Formatter::info("functions")
         );
         tracing::info!(
             "  {}                     Exit the REPL",

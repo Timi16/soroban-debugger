@@ -44,6 +44,8 @@ pub struct DebugEnv {
     operation_sequence: usize,
     /// Current call depth for function tracking
     call_depth: usize,
+    /// Unified dynamic trace events for analysis
+    dynamic_events: Vec<crate::server::protocol::DynamicTraceEvent>,
 }
 
 impl DebugEnv {
@@ -54,18 +56,40 @@ impl DebugEnv {
             key_access_index: HashMap::new(),
             operation_sequence: 0,
             call_depth: 0,
+            dynamic_events: Vec::new(),
         }
+    }
+
+    /// Record a dynamic trace event
+    pub fn record_event(
+        &mut self,
+        kind: crate::server::protocol::DynamicTraceEventKind,
+        message: String,
+    ) {
+        let event = crate::server::protocol::DynamicTraceEvent {
+            sequence: self.operation_sequence,
+            kind,
+            message,
+            call_depth: Some(self.call_depth as u64),
+            ..Default::default()
+        };
+        self.dynamic_events.push(event);
+        self.operation_sequence += 1;
     }
 
     /// Record a storage read operation
     pub fn track_storage_read(&mut self, key: impl Into<String>) {
         let key_str = key.into();
+        self.record_event(
+            crate::server::protocol::DynamicTraceEventKind::StorageRead,
+            format!("Read: {}", key_str),
+        );
         let access = StorageAccess {
             access_type: StorageAccessType::Read,
             key: key_str.clone(),
             value: None,
             timestamp: Self::current_timestamp(),
-            sequence: self.operation_sequence,
+            sequence: self.operation_sequence - 1,
         };
         let index = self.storage_accesses.len();
         self.storage_accesses.push(access);
@@ -73,19 +97,22 @@ impl DebugEnv {
             .entry(key_str)
             .or_default()
             .push(index);
-        self.operation_sequence += 1;
     }
 
     /// Record a storage write operation
     pub fn track_storage_write(&mut self, key: impl Into<String>, value: impl Into<String>) {
         let key_str = key.into();
         let value_str = value.into();
+        self.record_event(
+            crate::server::protocol::DynamicTraceEventKind::StorageWrite,
+            format!("Write: {} = {}", key_str, value_str),
+        );
         let access = StorageAccess {
             access_type: StorageAccessType::Write,
             key: key_str.clone(),
             value: Some(value_str),
             timestamp: Self::current_timestamp(),
-            sequence: self.operation_sequence,
+            sequence: self.operation_sequence - 1,
         };
         let index = self.storage_accesses.len();
         self.storage_accesses.push(access);
@@ -93,11 +120,16 @@ impl DebugEnv {
             .entry(key_str)
             .or_default()
             .push(index);
-        self.operation_sequence += 1;
     }
 
     /// Record the start of a function call
-    pub fn enter_function(&mut self, _caller: impl Into<String>, _callee: impl Into<String>) {
+    pub fn enter_function(&mut self, caller: impl Into<String>, callee: impl Into<String>) {
+        let caller_str = caller.into();
+        let callee_str = callee.into();
+        self.record_event(
+            crate::server::protocol::DynamicTraceEventKind::FunctionCall,
+            format!("Call: {} -> {}", caller_str, callee_str),
+        );
         self.call_depth += 1;
     }
 
@@ -110,21 +142,36 @@ impl DebugEnv {
         result: Option<impl Into<String>>,
         error: Option<impl Into<String>>,
     ) {
+        let res_str = result.map(|r| r.into());
+        let err_str = error.map(|e| e.into());
+
+        self.record_event(
+            crate::server::protocol::DynamicTraceEventKind::Diagnostic,
+            format!(
+                "Return: {}",
+                res_str.as_deref().or(err_str.as_deref()).unwrap_or("void")
+            ),
+        );
+
         let call = FunctionCallMetadata {
             caller: caller.into(),
             callee: callee.into(),
             arguments,
             timestamp: Self::current_timestamp(),
-            sequence: self.operation_sequence,
+            sequence: self.operation_sequence - 1,
             depth: self.call_depth.saturating_sub(1),
-            result: result.map(|r| r.into()),
-            error: error.map(|e| e.into()),
+            result: res_str,
+            error: err_str,
         };
         self.function_calls.push(call);
-        self.operation_sequence += 1;
         if self.call_depth > 0 {
             self.call_depth -= 1;
         }
+    }
+
+    /// Get all dynamic trace events
+    pub fn dynamic_events(&self) -> &[crate::server::protocol::DynamicTraceEvent] {
+        &self.dynamic_events
     }
 
     /// Get all storage accesses

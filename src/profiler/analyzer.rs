@@ -30,6 +30,15 @@ pub struct FunctionProfile {
     pub wall_time_ms: u128,
     pub operations: Vec<OperationCost>,
     pub storage_accesses: HashMap<String, StorageAccess>,
+    pub call_tree: Option<Vec<crate::profiler::session::CallFrame>>,
+}
+
+/// Folded stack sample for external tools (issue #502).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct FoldedStackSample {
+    pub stack: Vec<String>,
+    pub cpu_cost: u64,
+    pub memory_cost: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -119,6 +128,7 @@ impl GasOptimizer {
                     wall_time_ms,
                     operations,
                     storage_accesses,
+                    call_tree: None,
                 };
                 self.function_profiles
                     .insert(function_name.to_string(), profile.clone());
@@ -133,6 +143,7 @@ impl GasOptimizer {
                     wall_time_ms,
                     operations,
                     storage_accesses,
+                    call_tree: None,
                 };
                 self.function_profiles
                     .insert(function_name.to_string(), profile.clone());
@@ -151,6 +162,7 @@ impl GasOptimizer {
             wall_time_ms,
             operations,
             storage_accesses,
+            call_tree: None,
         };
 
         self.function_profiles
@@ -409,7 +421,72 @@ impl GasOptimizer {
 
         output
     }
+
+    /// Export profiling data as folded stack format (issue #502).
+    /// Format: function1;function2;operation 123 (where 123 is the count)
+    pub fn to_folded_stack_format(&self, report: &OptimizationReport) -> String {
+        let mut lines = Vec::new();
+
+        for function in &report.functions {
+            // Function-level stack
+            let stack = vec![function.name.clone()];
+            let line = format!("{} {}", stack.join(";"), function.total_cpu);
+            lines.push(line);
+
+            // Operation-level stacks
+            for op in &function.operations {
+                let mut op_stack = stack.clone();
+                op_stack.push(format!("{}@{}", op.operation, op.location));
+                let combined_cost = op.cpu_cost.saturating_add(op.memory_cost);
+                let line = format!("{} {}", op_stack.join(";"), combined_cost.max(1));
+                lines.push(line);
+            }
+
+            // Storage access stacks
+            for (key, access) in &function.storage_accesses {
+                let mut storage_stack = stack.clone();
+                storage_stack.push(format!("storage[{}]", key));
+                let line = format!("{} {}", storage_stack.join(";"), access.total_cpu.max(1));
+                lines.push(line);
+            }
+        }
+
+        lines.join("\n")
+    }
+
+    /// Get call tree hotpaths (issue #503).
+    /// Returns subtrees representing the most expensive call chains.
+    pub fn get_hotpath_trees(&self, report: &OptimizationReport) -> Vec<CallTree> {
+        let mut trees = Vec::new();
+
+        for function in &report.functions {
+            if let Some(call_frames) = &function.call_tree {
+                for frame in call_frames {
+                    let tree = CallTree {
+                        name: frame.function.clone(),
+                        cpu_cost: frame.cpu_cost,
+                        memory_cost: frame.memory_cost,
+                        children: vec![],
+                    };
+                    trees.push(tree);
+                }
+            }
+        }
+
+        // Sort by cost descending
+        trees.sort_by(|a, b| b.cpu_cost.cmp(&a.cpu_cost));
+        trees
+    }
 } // ✅ end impl GasOptimizer (IMPORTANT)
+
+/// Call tree capturing caller-callee relationships (issue #503).
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CallTree {
+    pub name: String,
+    pub cpu_cost: u64,
+    pub memory_cost: u64,
+    pub children: Vec<CallTree>,
+}
 
 /// ✅ This MUST be outside `impl GasOptimizer`
 impl OptimizationReport {

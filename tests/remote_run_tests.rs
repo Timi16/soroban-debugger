@@ -4,8 +4,19 @@ use std::path::PathBuf;
 use std::process::Command as StdCommand;
 use std::time::Duration;
 
+mod network;
+
 #[test]
 fn test_remote_run_execution() {
+    if !network::can_bind_loopback() {
+        eprintln!(
+            "Skipping test_remote_run_execution: loopback networking restricted \
+             (EPERM or equivalent) – cannot bind/connect on 127.0.0.1. \
+             See docs/remote-troubleshooting.md."
+        );
+        return;
+    }
+
     fn fixture_wasm_path(name: &str) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests")

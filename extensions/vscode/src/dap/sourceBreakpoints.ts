@@ -72,10 +72,21 @@ export function parseFunctionRanges(sourcePath: string): FunctionRange[] {
   return ranges
 }
 
+export function shouldPromoteToFunctionBreakpoint(
+  verified: boolean,
+  functionName?: string,
+  reasonCode?: string
+): boolean {
+  if (!functionName) return false
+  if (verified) return true
+  return reasonCode === 'HEURISTIC_REANCHORED' || reasonCode === 'HEURISTIC_NO_DWARF'
+}
+
 export function resolveSourceBreakpoints(
   sourcePath: string,
   lines: number[],
-  exportedFunctions: Set<string>
+  exportedFunctions: Set<string>,
+  previousFunctionMap?: Map<number, string>
 ): ResolvedBreakpoint[] {
   const ranges = parseFunctionRanges(sourcePath)
 
@@ -84,12 +95,40 @@ export function resolveSourceBreakpoints(
       (candidate) => line >= candidate.startLine && line <= candidate.endLine
     )
     if (!range) {
+      if (previousFunctionMap) {
+        const prevFn = previousFunctionMap.get(line)
+        if (prevFn) {
+          const fnRange = ranges.find((r) => r.name === prevFn)
+          if (fnRange) {
+            if (!exportedFunctions.has(prevFn)) {
+              return {
+                requestedLine: line,
+                line: fnRange.startLine,
+                verified: false,
+                functionName: prevFn,
+                reasonCode: 'HEURISTIC_NOT_EXPORTED',
+                setBreakpoint: shouldPromoteToFunctionBreakpoint(false, prevFn, 'HEURISTIC_NOT_EXPORTED'),
+                message: `Rust function '${prevFn}' is not an exported contract entrypoint`,
+              }
+            }
+            return {
+              requestedLine: line,
+              line: fnRange.startLine,
+              verified: false,
+              functionName: prevFn,
+              reasonCode: 'HEURISTIC_REANCHORED',
+              setBreakpoint: shouldPromoteToFunctionBreakpoint(false, prevFn, 'HEURISTIC_REANCHORED'),
+              message: `Breakpoint re-anchored to '${prevFn}' after source edit (was line ${line}, now line ${fnRange.startLine})`,
+            }
+          }
+        }
+      }
       return {
         requestedLine: line,
         line,
         verified: false,
         reasonCode: 'HEURISTIC_NO_FUNCTION',
-        setBreakpoint: false,
+        setBreakpoint: shouldPromoteToFunctionBreakpoint(false, undefined, 'HEURISTIC_NO_FUNCTION'),
         message: 'Line is not inside a detectable Rust function',
       }
     }
@@ -101,7 +140,7 @@ export function resolveSourceBreakpoints(
         verified: false,
         functionName: range.name,
         reasonCode: 'HEURISTIC_NOT_EXPORTED',
-        setBreakpoint: false,
+        setBreakpoint: shouldPromoteToFunctionBreakpoint(false, range.name, 'HEURISTIC_NOT_EXPORTED'),
         message: `Rust function '${range.name}' is not an exported contract entrypoint`,
       }
     }
@@ -112,7 +151,7 @@ export function resolveSourceBreakpoints(
       verified: false,
       functionName: range.name,
       reasonCode: 'HEURISTIC_NO_DWARF',
-      setBreakpoint: true,
+      setBreakpoint: shouldPromoteToFunctionBreakpoint(false, range.name, 'HEURISTIC_NO_DWARF'),
       message: `Heuristic mapping to contract entrypoint '${range.name}' (DWARF source map unavailable)`,
     }
   })

@@ -1,4 +1,4 @@
-﻿//! Tests for structured timeout and cancellation error variants.
+//! Tests for structured timeout and cancellation error variants.
 
 use soroban_debugger::runtime::result::RuntimeError;
 
@@ -36,7 +36,10 @@ fn test_cancelled_predicate() {
 fn test_timeout_fields() {
     let err = RuntimeError::timeout(500, 1000);
     match err {
-        RuntimeError::Timeout { elapsed_ms, limit_ms } => {
+        RuntimeError::Timeout {
+            elapsed_ms,
+            limit_ms,
+        } => {
             assert_eq!(elapsed_ms, 500);
             assert_eq!(limit_ms, 1000);
         }
