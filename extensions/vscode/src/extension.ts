@@ -30,7 +30,7 @@ class SorobanDebugConfigurationProvider
       return this.createDefaultLaunchConfig(folder)
     }
 
-    if (config.type !== 'soroban' || config.request !== 'launch') {
+    if (config.type !== 'soroban') {
       return config
     }
 
@@ -38,19 +38,35 @@ class SorobanDebugConfigurationProvider
       'soroban-debugger',
       folder
     )
+    // Apply workspace-level timeouts to both launch and attach configs
     config.requestTimeoutMs =
       config.requestTimeoutMs ?? settings.get<number>('requestTimeoutMs')
     config.connectTimeoutMs =
       config.connectTimeoutMs ?? settings.get<number>('connectTimeoutMs')
 
-    const preflight = await validateLaunchConfig(config)
-    if (preflight.ok) {
-      return config
+    if (config.request === 'launch') {
+      const preflight = await validateLaunchConfig(config)
+      if (preflight.ok) {
+        return config
+      }
+
+      await showPreflightIssueAndApplyFix(preflight.issues[0], folder, config.name);
+      return undefined
     }
 
-    await showPreflightIssueAndApplyFix(preflight.issues[0], folder, config.name);
+    if (config.request === 'attach') {
+      // Ensure attach-mode validation knows we will not spawn a server.
+      (config as any).spawnServer = false
+      const preflight = await validateLaunchConfig(config as any)
+      if (preflight.ok) {
+        return config
+      }
 
-    return undefined
+      await showPreflightIssueAndApplyFix(preflight.issues[0], folder, config.name);
+      return undefined
+    }
+
+    return config
   }
 
   private createDefaultLaunchConfig(

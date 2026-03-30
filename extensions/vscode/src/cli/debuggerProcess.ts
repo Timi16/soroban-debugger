@@ -1116,14 +1116,19 @@ export async function validateLaunchConfig(
   const issues: LaunchPreflightIssue[] = [];
   const resolvedBinaryPath = resolveDebuggerBinaryPath(config);
 
-  if (!looksLikeVariableReference(resolvedBinaryPath)) {
-    pushFileIssue(
-      issues,
-      "binaryPath",
-      resolvedBinaryPath,
-      "a readable soroban-debug binary path or a command available on PATH.",
-      ["pickBinary", "openLaunchConfig", "openSettings"],
-    );
+  // Only validate the binary path when we expect to spawn a local server.
+  // In attach mode (spawnServer === false) the extension should not attempt
+  // to launch a binary on the host running the extension.
+  if (config.spawnServer !== false) {
+    if (!looksLikeVariableReference(resolvedBinaryPath)) {
+      pushFileIssue(
+        issues,
+        "binaryPath",
+        resolvedBinaryPath,
+        "a readable soroban-debug binary path or a command available on PATH.",
+        ["pickBinary", "openLaunchConfig", "openSettings"],
+      );
+    }
   }
 
   if (!config.contractPath || config.contractPath.trim().length === 0) {

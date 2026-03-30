@@ -4,7 +4,7 @@
 .SH NAME
 server \- Start debug server for remote connections
 .SH SYNOPSIS
-\fBserver\fR [\fB\-p\fR|\fB\-\-port\fR] [\fB\-t\fR|\fB\-\-token\fR] [\fB\-\-tls\-cert\fR] [\fB\-\-tls\-key\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBserver\fR [\fB\-p\fR|\fB\-\-port\fR] [\fB\-t\fR|\fB\-\-token\fR] [\fB\-\-tls\-cert\fR] [\fB\-\-tls\-key\fR] [\fB\-\-repeat\fR] [\fB\-\-storage\-filter\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Start debug server for remote connections
 .SH OPTIONS
@@ -20,6 +20,12 @@ TLS certificate file path (optional)
 .TP
 \fB\-\-tls\-key\fR \fI<TLS_KEY>\fR
 TLS private key file path (optional)
+.TP
+\fB\-\-repeat\fR \fI<N>\fR
+Repeat execution N times and show throughput/latency stats
+.TP
+\fB\-\-storage\-filter\fR \fI<PATTERN>\fR
+Filter storage view to only show keys matching pattern (repeatable)
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

@@ -303,6 +303,8 @@ soroban-debug server \
 
 > Security note: when connecting over a non-loopback network, run the server behind an SSH tunnel or a VPN. The wire protocol does not include TLS.
 
+Maintainers: for the implementation/testing checklist, see `docs/remote-attach-configuration.md`.
+
 ---
 
 ## Advanced Configuration
