@@ -435,24 +435,6 @@ impl Drop for LoadedPlugin {
     }
 }
 
-#[cfg(test)]
-impl LoadedPlugin {
-    pub(crate) fn from_parts_for_tests(
-        plugin: Box<dyn InspectorPlugin>,
-        path: PathBuf,
-        manifest: PluginManifest,
-        trust: PluginTrustAssessment,
-    ) -> Self {
-        Self {
-            plugin,
-            library: None,
-            path,
-            manifest,
-            trust,
-        }
-    }
-}
-
 /// Checks if the plugin API version matches the host's expected version.
 pub fn check_api_version(plugin_version: u32) -> Result<(), crate::plugin::api::PluginError> {
     use crate::plugin::api::{PluginError, PLUGIN_API_VERSION};
@@ -475,6 +457,13 @@ mod tests {
         use ed25519_dalek::{Signer, SigningKey};
         use std::collections::BTreeSet;
         use std::path::Path;
+
+        // Import plugin types re-exported by the crate for tests
+        use crate::plugin::loader::check_api_version;
+        use crate::plugin::PluginLoader;
+        use crate::plugin::PluginManifest;
+        use crate::plugin::PluginTrustMode;
+        use crate::plugin::PluginTrustPolicy;
 
         fn base_manifest(name: &str) -> PluginManifest {
             PluginManifest {

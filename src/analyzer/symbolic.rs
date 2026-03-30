@@ -507,8 +507,8 @@ impl SymbolicAnalyzer {
                 let base = [
                     "\"GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF\"", // ZERO
                     "\"CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB4H\"", // CONTRACT_ZERO
-                    "\"GD5DJ3B6A2KHSXLYJZ3IGR7Q5UMVJ5J4GQTKTQYQDQXJQJ5YQZQKQZQ\"", // TEST_1
-                    "\"GBLO7VQYJLRU56W77WKHLYU7C3T73J3Y5PQUZLQJ5YQZQKQZQYX\"",    // TEST_2
+                    "\"GD5DJ3B6A2KHSXLYJZ3IGR7Q5UMVJ5J4GQTKTQYQDQXJQJ5YQZQKQZQ\"",  // TEST_1
+                    "\"GBLO7VQYJLRU56W77WKHLYU7C3T73J3Y5PQUZLQJ5YQZQKQZQYX\"",      // TEST_2
                 ];
                 base.into_iter()
                     .take(limit)
@@ -791,6 +791,13 @@ mod tests {
         let mut module = Vec::new();
         module.extend_from_slice(&[0x00, 0x61, 0x73, 0x6d]);
         module.extend_from_slice(&[0x01, 0x00, 0x00, 0x00]);
+        // Add a minimal `contractmeta` custom section so the host accepts the
+        // module as a contract (some host versions require metadata to be present).
+        let mut custom = Vec::new();
+        push_name("contractmeta", &mut custom);
+        // Minimal JSON metadata with a contract_version so the host accepts it.
+        custom.extend_from_slice(b"{\"contract_version\": \"0.0.1\"}");
+        append_section(&mut module, 0, &custom);
 
         // Type section: type 0 = () -> (), type 1 = (i64, i64) -> ()
         let mut types = Vec::new();
@@ -862,8 +869,20 @@ mod tests {
         };
         let mut seen_inputs = HashSet::new();
 
-        SymbolicAnalyzer::record_outcome(&mut report, &mut seen_inputs, "[0]", Ok("1".into()), Vec::new());
-        SymbolicAnalyzer::record_outcome(&mut report, &mut seen_inputs, "[1]", Ok("1".into()), Vec::new());
+        SymbolicAnalyzer::record_outcome(
+            &mut report,
+            &mut seen_inputs,
+            "[0]",
+            Ok("1".into()),
+            Vec::new(),
+        );
+        SymbolicAnalyzer::record_outcome(
+            &mut report,
+            &mut seen_inputs,
+            "[1]",
+            Ok("1".into()),
+            Vec::new(),
+        );
 
         assert_eq!(report.paths.len(), 2);
         assert_eq!(report.panics_found, 0);
@@ -894,8 +913,20 @@ mod tests {
         };
         let mut seen_inputs = HashSet::new();
 
-        SymbolicAnalyzer::record_outcome(&mut report, &mut seen_inputs, "[0]", Ok("1".into()), Vec::new());
-        SymbolicAnalyzer::record_outcome(&mut report, &mut seen_inputs, "[0]", Ok("1".into()), Vec::new());
+        SymbolicAnalyzer::record_outcome(
+            &mut report,
+            &mut seen_inputs,
+            "[0]",
+            Ok("1".into()),
+            Vec::new(),
+        );
+        SymbolicAnalyzer::record_outcome(
+            &mut report,
+            &mut seen_inputs,
+            "[0]",
+            Ok("1".into()),
+            Vec::new(),
+        );
 
         assert_eq!(report.paths.len(), 1);
     }
@@ -1165,8 +1196,11 @@ mod tests {
         // Test Address
         let seeds = analyzer.generate_seeds_for_type("Address", &config, 0);
         assert!(seeds.len() >= 4);
-        assert!(seeds.contains(&"\"GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF\"".to_string()));
-        assert!(seeds.contains(&"\"GBLO7VQYJLRU56W77WKHLYU7C3T73J3Y5PQUZLQJ5YQZQKQZQYX\"".to_string()));
+        assert!(seeds
+            .contains(&"\"GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF\"".to_string()));
+        assert!(
+            seeds.contains(&"\"GBLO7VQYJLRU56W77WKHLYU7C3T73J3Y5PQUZLQJ5YQZQKQZQYX\"".to_string())
+        );
 
         // Test Map
         let seeds = analyzer.generate_seeds_for_type("Map<Symbol, U32>", &config, 0);

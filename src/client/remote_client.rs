@@ -1063,6 +1063,9 @@ mod tests {
             },
             heartbeat_interval_ms: None,
             idle_timeout_ms: None,
+            tls_cert: None,
+            tls_key: None,
+            tls_ca: None,
         };
 
         let mut client =
@@ -1153,6 +1156,9 @@ mod tests {
             },
             heartbeat_interval_ms: None,
             idle_timeout_ms: None,
+            tls_cert: None,
+            tls_key: None,
+            tls_ca: None,
         };
 
         let mut client =
