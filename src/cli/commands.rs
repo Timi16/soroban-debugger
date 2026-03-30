@@ -519,6 +519,8 @@ pub fn run(args: RunArgs, verbosity: Verbosity) -> Result<()> {
             token: args.token,
             tls_cert: args.tls_cert,
             tls_key: args.tls_key,
+            repeat: args.repeat,
+            storage_filter: args.storage_filter.clone(),
         });
     }
 
@@ -530,6 +532,9 @@ pub fn run(args: RunArgs, verbosity: Verbosity) -> Result<()> {
                 token: args.token.clone(),
                 contract: args.contract.clone(),
                 function: args.function.clone(),
+                tls_cert: args.tls_cert.clone(),
+                tls_key: args.tls_key.clone(),
+                tls_ca: args.tls_ca.clone(),
                 args: args.args.clone(),
             },
             verbosity,
@@ -1869,7 +1874,8 @@ pub fn remote(args: RemoteArgs, _verbosity: Verbosity) -> Result<()> {
     config.tls_cert = args.tls_cert.clone();
     config.tls_key = args.tls_key.clone();
     config.tls_ca = args.tls_ca.clone();
-    let mut client = crate::client::RemoteClient::connect_with_config(&args.remote, args.token.clone(), config)?;
+    let mut client =
+        crate::client::RemoteClient::connect_with_config(&args.remote, args.token.clone(), config)?;
 
     if let Some(contract) = &args.contract {
         print_info(format!("Loading contract: {:?}", contract));

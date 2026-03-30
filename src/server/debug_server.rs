@@ -189,9 +189,9 @@ impl DebugServer {
                 .map_err(|_| miette::miette!("Connection closed"))
         };
 
-        let mut heartbeat_interval = None;
+        let mut _heartbeat_interval = None;
         let mut idle_timeout = None;
-        let mut heartbeat_timer = None;
+        let mut _heartbeat_timer = None;
 
         loop {
             let next_message = if let Some(timeout) = idle_timeout {
@@ -269,14 +269,14 @@ impl DebugServer {
                     Ok(selected_version) => {
                         handshake_done = true;
                         // Support heartbeat/timeout negotiation
-                        heartbeat_interval = *heartbeat_interval_ms;
+                        _heartbeat_interval = *heartbeat_interval_ms;
                         idle_timeout = *idle_timeout_ms;
 
-                        if let Some(interval) = heartbeat_interval {
+                        if let Some(interval) = _heartbeat_interval {
                             info!("Negotiated heartbeat interval: {}ms", interval);
                             let tx_heartbeat = tx_out.clone();
                             let interval_ms = interval as u64;
-                            heartbeat_timer = Some(tokio::spawn(async move {
+                            _heartbeat_timer = Some(tokio::spawn(async move {
                                 let mut interval_timer =
                                     tokio::time::interval(std::time::Duration::from_millis(
                                         interval_ms,
@@ -305,7 +305,7 @@ impl DebugServer {
                                 protocol_min: PROTOCOL_MIN_VERSION,
                                 protocol_max: PROTOCOL_MAX_VERSION,
                                 selected_version: selected_version,
-                                heartbeat_interval_ms: heartbeat_interval,
+                                heartbeat_interval_ms: _heartbeat_interval,
                                 idle_timeout_ms: idle_timeout,
                             },
                         );
@@ -475,7 +475,7 @@ impl DebugServer {
                     if let Some(count) = self.repeat_count {
                         if count > 1 {
                             if let Some(wasm) = &self.contract_wasm {
-                                let breakpoints = self.engine.as_ref().map(|e| e.breakpoints().list().into_iter().map(|b| b.function).collect()).unwrap_or_default();
+                                let breakpoints = self.engine.as_ref().map(|e| e.breakpoints().list()).unwrap_or_default();
                                 let initial_storage = self.engine.as_ref().and_then(|e| e.executor().get_storage_snapshot().ok()).and_then(|s| serde_json::to_string(&s).ok());
                                 let runner = crate::repeat::RepeatRunner::new(wasm.clone(), breakpoints, initial_storage);
                                 match runner.run(&function, args.as_deref(), count) {
@@ -487,7 +487,7 @@ impl DebugServer {
                                             stats.min_memory, stats.max_memory, stats.avg_memory,
                                             if stats.inconsistent_results { "INCONSISTENT" } else { "CONSISTENT" }
                                         );
-                                        return Ok(DebugResponse::ExecutionResult {
+                                        let response = DebugMessage::response(message.id, DebugResponse::ExecutionResult {
                                             success: true,
                                             output,
                                             error: None,
@@ -495,14 +495,20 @@ impl DebugServer {
                                             completed: true,
                                             source_location: None,
                                         });
+                                        send_msg(response)?;
+                                        continue;
                                     }
-                                    Err(e) => return Ok(DebugResponse::Error { message: e.to_string() }),
+                                    Err(e) => {
+                                        let response = DebugMessage::response(message.id, DebugResponse::Error { message: e.to_string() });
+                                        send_msg(response)?;
+                                        continue;
+                                    }
                                 }
                             }
                         }
                     }
 
-                    match self.engine.as_mut() {
+                    let response = match self.engine.as_mut() {
                     Some(engine) if engine.breakpoints().should_break(&function) => {
                         match current_storage(engine) {
                             Ok(storage) => match engine.breakpoints_mut().on_hit(
@@ -564,7 +570,9 @@ impl DebugServer {
                     None => DebugResponse::Error {
                         message: "No contract loaded".to_string(),
                     },
-                },
+                    };
+                    response
+                }
                 DebugRequest::Step | DebugRequest::StepIn => match self.engine.as_mut() {
                     Some(engine) => match engine.step_into() {
                         Ok(_) => {
@@ -981,7 +989,7 @@ impl DebugServer {
                             message: e.to_string(),
                         },
                     }
-                }
+                },
                 DebugRequest::Evaluate { expression, .. } => match self.engine.as_ref() {
                     Some(engine) => {
                         // First try to look up the expression as a storage key
@@ -1136,8 +1144,7 @@ async fn setup_signal_handlers(shutdown: Arc<Notify>) {
     let mut ctrl_c = Box::pin(tokio::signal::ctrl_c());
 
     #[cfg(not(unix))]
-    let ctrl_c = tokio::signal::ctrl_c();
-    let mut ctrl_c = Box::pin(tokio::signal::ctrl_c());
+    let ctrl_c = Box::pin(tokio::signal::ctrl_c());
 
     #[cfg(unix)]
     {
@@ -1188,7 +1195,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_graceful_shutdown_on_signal() {
-        let server = DebugServer::new(None, None, None).expect("Failed to create server");
+        let server = DebugServer::new(None, None, None, None, Vec::new()).expect("Failed to create server");
         let shutdown = server.shutdown.clone();
 
         let local = tokio::task::LocalSet::new();
@@ -1211,7 +1218,7 @@ mod tests {
 
     #[test]
     fn test_server_initialization() {
-        let server = DebugServer::new(None, None, None).expect("Failed to create server");
+        let server = DebugServer::new(None, None, None, None, Vec::new()).expect("Failed to create server");
         assert!(server.engine.is_none());
         assert!(server.token.is_none());
         assert!(server.tls_config.is_none());
@@ -1221,7 +1228,7 @@ mod tests {
     fn test_server_with_token() {
         let token = "test-token-12345678".to_string();
         let server =
-            DebugServer::new(Some(token.clone()), None, None).expect("Failed to create server");
+            DebugServer::new(Some(token.clone()), None, None, None, Vec::new()).expect("Failed to create server");
         assert_eq!(server.token, Some(token));
     }
 }

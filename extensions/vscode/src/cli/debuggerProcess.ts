@@ -176,26 +176,44 @@ export function formatProtocolMismatchMessage(
 }
 
 type DebugRequest =
-  | { type: 'Handshake'; client_name: string; client_version: string; protocol_min: number; protocol_max: number }
-  | { type: 'Authenticate'; token: string }
-  | { type: 'LoadContract'; contract_path: string }
-  | { type: 'Execute'; function: string; args?: string }
-  | { type: 'StepIn' }
-  | { type: 'Next' }
-  | { type: 'StepOut' }
-  | { type: 'Continue' }
-  | { type: 'Inspect' }
-  | { type: 'GetStorage' }
-  | { type: 'SetBreakpoint'; id?: string; function: string; condition?: string; hit_condition?: string; log_message?: string }
-  | { type: 'ClearBreakpoint'; id?: string; function?: string }
-  | { type: 'ResolveSourceBreakpoints'; source_path: string; lines: number[]; exported_functions: string[] }
-  | { type: 'Evaluate'; expression: string; frame_id?: number }
-  | { type: 'Cancel' }
-  | { type: 'Ping' }
-  | { type: 'Disconnect' }
-  | { type: 'LoadSnapshot'; snapshot_path: string }
-  | { type: 'GetCapabilities' }
-  | { type: 'Unknown' };
+  | {
+      type: "Handshake";
+      client_name: string;
+      client_version: string;
+      protocol_min: number;
+      protocol_max: number;
+    }
+  | { type: "Authenticate"; token: string }
+  | { type: "LoadContract"; contract_path: string }
+  | { type: "Execute"; function: string; args?: string }
+  | { type: "StepIn" }
+  | { type: "Next" }
+  | { type: "StepOut" }
+  | { type: "Continue" }
+  | { type: "Inspect" }
+  | { type: "GetStorage" }
+  | {
+      type: "SetBreakpoint";
+      id?: string;
+      function: string;
+      condition?: string;
+      hit_condition?: string;
+      log_message?: string;
+    }
+  | { type: "ClearBreakpoint"; id?: string; function?: string }
+  | {
+      type: "ResolveSourceBreakpoints";
+      source_path: string;
+      lines: number[];
+      exported_functions: string[];
+    }
+  | { type: "Evaluate"; expression: string; frame_id?: number }
+  | { type: "Cancel" }
+  | { type: "Ping" }
+  | { type: "Disconnect" }
+  | { type: "LoadSnapshot"; snapshot_path: string }
+  | { type: "GetCapabilities" }
+  | { type: "Unknown" };
 
 type DebugResponse =
   | {
@@ -617,17 +635,17 @@ export class DebuggerProcess {
       function: breakpoint.functionName,
       condition: breakpoint.condition,
       hit_condition: breakpoint.hitCondition,
-      log_message: breakpoint.logMessage
-    }as any);
-    this.expectResponse(response, 'BreakpointSet');
+      log_message: breakpoint.logMessage,
+    } as any);
+    this.expectResponse(response, "BreakpointSet");
   }
 
   async clearBreakpoint(breakpointId: string): Promise<void> {
     const response = await this.sendRequest({
-      type: 'ClearBreakpoint',
-      id: breakpointId
+      type: "ClearBreakpoint",
+      id: breakpointId,
     } as any);
-    this.expectResponse(response, 'BreakpointCleared');
+    this.expectResponse(response, "BreakpointCleared");
   }
 
   async evaluate(
@@ -725,7 +743,11 @@ export class DebuggerProcess {
       functionName: bp.function,
       reasonCode: bp.reason_code,
       message: bp.message,
-      setBreakpoint: shouldPromoteToFunctionBreakpoint(bp.verified, bp.function, bp.reason_code),
+      setBreakpoint: shouldPromoteToFunctionBreakpoint(
+        bp.verified,
+        bp.function,
+        bp.reason_code,
+      ),
     }));
   }
 
@@ -847,7 +869,9 @@ export class DebuggerProcess {
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    throw new Error(`Timed out waiting for debugger server on ${this.config.host ?? "127.0.0.1"}:${port}`);
+    throw new Error(
+      `Timed out waiting for debugger server on ${this.config.host ?? "127.0.0.1"}:${port}`,
+    );
   }
 
   private async canConnect(port: number): Promise<boolean> {
@@ -1188,7 +1212,10 @@ export async function validateLaunchConfig(
         expected: "An available TCP port between 1 and 65535.",
         quickFixes: ["openLaunchConfig"],
       });
-    } else if (config.spawnServer !== false && !(await isPortAvailable(config.port))) {
+    } else if (
+      config.spawnServer !== false &&
+      !(await isPortAvailable(config.port))
+    ) {
       // Only check port availability when we are spawning a local server.
       // In attach mode (spawnServer: false) the port must already be in use.
       issues.push({
@@ -1205,7 +1232,8 @@ export async function validateLaunchConfig(
       issues.push({
         field: "host",
         message: "Launch config field 'host' must be a non-empty string.",
-        expected: "A hostname or IP address such as '192.168.1.10' or 'debug.example.com'.",
+        expected:
+          "A hostname or IP address such as '192.168.1.10' or 'debug.example.com'.",
         quickFixes: ["openLaunchConfig"],
       });
     }

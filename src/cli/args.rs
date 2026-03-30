@@ -277,6 +277,9 @@ pub struct RunArgs {
     /// Path to TLS key file
     #[arg(long)]
     pub tls_key: Option<std::path::PathBuf>,
+    /// Path to TLS CA certificate file (optional, for self-signed certs)
+    #[arg(long)]
+    pub tls_ca: Option<std::path::PathBuf>,
     /// Output format (text, json)
     #[arg(long)]
     pub format: Option<String>,
