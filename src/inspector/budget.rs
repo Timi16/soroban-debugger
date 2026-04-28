@@ -6,6 +6,24 @@ use std::collections::VecDeque;
 /// Tracks resource usage (CPU and memory budget)
 pub struct BudgetInspector;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BudgetDelta {
+    pub cpu_delta: u64,
+    pub mem_delta: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BudgetDeltaCheckpoint {
+    /// Index into the original checkpoints slice (for correlation/debugging)
+    pub index: usize,
+    pub timestamp_ms: u64,
+    pub location_name: String,
+    pub cpu_total: u64,
+    pub mem_total: u64,
+    pub cpu_delta: u64,
+    pub mem_delta: u64,
+}
+
 impl BudgetInspector {
     /// Get CPU instruction usage from host
     pub fn get_cpu_usage(host: &Host) -> BudgetInfo {
@@ -179,6 +197,66 @@ impl BudgetInspector {
             location_name: location,
         }
     }
+
+    /// Convert a raw checkpoint timeline into per-checkpoint deltas.
+    ///
+    /// The returned vector has length `timeline.len().saturating_sub(1)` and
+    /// each element represents the delta from `timeline[i-1]` to `timeline[i]`.
+    pub fn deltas_from_checkpoints(timeline: &[ResourceCheckpoint]) -> Vec<BudgetDeltaCheckpoint> {
+        if timeline.len() < 2 {
+            return Vec::new();
+        }
+
+        let mut out = Vec::with_capacity(timeline.len().saturating_sub(1));
+        for (idx, window) in timeline.windows(2).enumerate() {
+            let prev = &window[0];
+            let curr = &window[1];
+            out.push(BudgetDeltaCheckpoint {
+                index: idx + 1,
+                timestamp_ms: curr.timestamp_ms,
+                location_name: curr.location_name.clone(),
+                cpu_total: curr.cpu_instructions,
+                mem_total: curr.memory_bytes,
+                cpu_delta: curr.cpu_instructions.saturating_sub(prev.cpu_instructions),
+                mem_delta: curr.memory_bytes.saturating_sub(prev.memory_bytes),
+            });
+        }
+        out
+    }
+
+    /// Return the top-N checkpoints by CPU delta, memory delta, and a combined score.
+    ///
+    /// Combined score is a simple ranker intended for "spike triage" in normal output:
+    /// \(score = cpu_delta + mem_delta\).
+    pub fn top_spikes(
+        deltas: &[BudgetDeltaCheckpoint],
+        top_n: usize,
+    ) -> BudgetSpikeSummary {
+        let mut by_cpu: Vec<BudgetDeltaCheckpoint> = deltas.to_vec();
+        by_cpu.sort_by_key(|d| std::cmp::Reverse(d.cpu_delta));
+        by_cpu.truncate(top_n);
+
+        let mut by_mem: Vec<BudgetDeltaCheckpoint> = deltas.to_vec();
+        by_mem.sort_by_key(|d| std::cmp::Reverse(d.mem_delta));
+        by_mem.truncate(top_n);
+
+        let mut by_combined: Vec<BudgetDeltaCheckpoint> = deltas.to_vec();
+        by_combined.sort_by_key(|d| std::cmp::Reverse(d.cpu_delta.saturating_add(d.mem_delta)));
+        by_combined.truncate(top_n);
+
+        BudgetSpikeSummary {
+            by_cpu,
+            by_mem,
+            by_combined,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BudgetSpikeSummary {
+    pub by_cpu: Vec<BudgetDeltaCheckpoint>,
+    pub by_mem: Vec<BudgetDeltaCheckpoint>,
+    pub by_combined: Vec<BudgetDeltaCheckpoint>,
 }
 
 /// Severity level for budget warnings

@@ -679,3 +679,65 @@ pub fn format_resource_timeline(
     }
     output
 }
+
+/// Formats a compact "spike triage" view over a resource checkpoint timeline.
+///
+/// Intended for normal debugger output: quickly identify where budget spikes happened
+/// without switching to the full profiler.
+pub fn format_budget_delta_summary(timeline: &[ResourceCheckpoint], top_n: usize) -> String {
+    let deltas = BudgetInspector::deltas_from_checkpoints(timeline);
+    if deltas.is_empty() {
+        return String::new();
+    }
+
+    let spikes = BudgetInspector::top_spikes(&deltas, top_n.max(1));
+
+    fn format_row(d: &crate::inspector::budget::BudgetDeltaCheckpoint) -> String {
+        let loc = if d.location_name.len() > 36 {
+            format!("{}…", &d.location_name[..35])
+        } else {
+            d.location_name.clone()
+        };
+
+        format!(
+            "  {t:>4}ms  cpu +{cpu:<10} mem +{mem:<10}  {loc}",
+            t = d.timestamp_ms,
+            cpu = crate::ui::formatter::Formatter::format_compact_u64(d.cpu_delta),
+            mem = crate::ui::formatter::Formatter::format_bytes(d.mem_delta),
+            loc = loc
+        )
+    }
+
+    let mut out = String::new();
+    let _ = writeln!(&mut out, "=== Budget deltas (top spikes) ===");
+    let _ = writeln!(
+        &mut out,
+        "Captured {} checkpoints ({} deltas).",
+        timeline.len(),
+        deltas.len()
+    );
+    let _ = writeln!(&mut out);
+
+    let _ = writeln!(&mut out, "-- CPU spikes (top {}) --", spikes.by_cpu.len());
+    for d in &spikes.by_cpu {
+        let _ = writeln!(&mut out, "{}", format_row(d));
+    }
+
+    let _ = writeln!(&mut out);
+    let _ = writeln!(&mut out, "-- Memory spikes (top {}) --", spikes.by_mem.len());
+    for d in &spikes.by_mem {
+        let _ = writeln!(&mut out, "{}", format_row(d));
+    }
+
+    let _ = writeln!(&mut out);
+    let _ = writeln!(
+        &mut out,
+        "-- Combined spikes (cpu_delta + mem_delta, top {}) --",
+        spikes.by_combined.len()
+    );
+    for d in &spikes.by_combined {
+        let _ = writeln!(&mut out, "{}", format_row(d));
+    }
+
+    out
+}
