@@ -15,3 +15,6 @@ Rules supply robust metadata explicitly defined via the `SecurityRule` trait:
 3. **arithmetic**: Validates potential unbounded operation panics.
 4. **reentrancy**: Defends against nested external calls to untrusted code.
 5. **unbounded-iteration**: Defends against `Vec` bounds scaling out of control.
+
+## Suppressing Rules
+If a rule flags a finding that is an accepted risk or a false positive, you can suppress it using a suppression file. See [analyzer-suppressions.md](analyzer-suppressions.md) for details on the format and examples.

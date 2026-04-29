@@ -78,7 +78,7 @@ Roadmap view: [Section C priorities](roadmap-priorities.md#section-c--feature-re
 - **I-026** `[DOC]` `docs/plugin-api.md` trust-policy section documents environment variables but doesn't cross-link to the plugin failure-handling doc.
 - **I-027** `[DOC]` `docs/plugin-failure-handling.md` (1956 bytes) covers session-level circuit-breaker behavior introduced in PR #902 but doesn't describe what happens to in-flight events when a plugin trips the breaker.
 - **I-028** `[DOC]` `docs/plugin-command-namespaces.md` (1435 bytes) is not linked from `docs/plugin-api.md`, so readers learning about custom commands won't discover the namespace conflict rules.
-- **I-029** `[DOC]` `docs/analyzer-suppressions.md` (822 bytes) describes the suppression file format but gives no example of a suppression that covers a whole rule vs. a specific finding.
+- **I-029** ~`[DOC]` `docs/analyzer-suppressions.md` (822 bytes) describes the suppression file format but gives no example of a suppression that covers a whole rule vs. a specific finding.~
 - **I-030** `[DOC]` `docs/security-rules.md` (854 bytes) lists rule codes but doesn't map each code to its description, severity, or remediation guidance.
 - **I-031** `[DOC]` `docs/wasm-artifact-metadata.md` (1716 bytes) documents the metadata fields but doesn't show an example `inspect --format json` output that contains them.
 - **I-032** `[DOC]` `docs/watch-mode.md` (744 bytes) mentions the watch command but doesn't document the polling interval, file-glob support, or debounce behavior.

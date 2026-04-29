@@ -86,7 +86,7 @@ useful order instead of re-triaging the whole epic every time.
 | I-026 | Cross-link plugin-api.md trust section → plugin-failure-handling.md | P2 | XS | Docs | — | 2 |
 | I-027 | Document in-flight event behavior when plugin circuit-breaker trips | P1 | S | Docs | — | 2 |
 | I-028 | Link `plugin-command-namespaces.md` from `plugin-api.md` | P1 | XS | Docs | — | 1 |
-| I-029 | Add suppression examples (rule-level vs. finding-level) | P2 | S | Docs | — | 2 |
+| I-029 | ~Add suppression examples (rule-level vs. finding-level)~ | P2 | S | Docs | — | 2 |
 | I-030 | Expand `docs/security-rules.md` with severity and remediation guide | P2 | M | Docs | — | 2 |
 | I-031 | Add `inspect --format json` example output to `wasm-artifact-metadata.md` | P2 | S | Docs | — | 2 |
 | I-032 | Expand `docs/watch-mode.md` with polling interval and debounce details | P2 | S | Docs | — | 2 |

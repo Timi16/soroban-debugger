@@ -45,4 +45,4 @@ This directory contains a variety of examples demonstrating the capabilities of 
 
 *   **`*.json` (Snapshots & Traces)**: Sample ledger states (`snapshot.json`) and execution traces (`trace_a.json`) that can be loaded directly into the debugger.
 *   **`batch_args.json`**: Demonstrates how to run the debugger in batch mode for CI or automated auditing.
-*   **`analyzer-suppressions.toml`**: Example configuration for filtering security analyzer findings.
+*   **`analyzer-suppressions.toml`**: Example configuration for filtering security analyzer findings. See the [Analyzer Suppressions documentation](../docs/analyzer-suppressions.md) for usage details.
