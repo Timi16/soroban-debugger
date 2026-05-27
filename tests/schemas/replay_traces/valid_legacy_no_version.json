@@ -1,0 +1,9 @@
+{
+  "label": "legacy transfer trace (pre-versioning)",
+  "contract": "fixtures/token.wasm",
+  "function": "transfer",
+  "args": "[\"Alice\",\"Bob\",100]",
+  "storage": {},
+  "call_sequence": [],
+  "events": []
+}

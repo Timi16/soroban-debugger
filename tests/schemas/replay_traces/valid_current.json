@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "label": "transfer fixture",
+  "contract": "fixtures/token.wasm",
+  "function": "transfer",
+  "args": "[\"Alice\",\"Bob\",100]",
+  "storage": {},
+  "budget": null,
+  "return_value": null,
+  "call_sequence": [],
+  "events": []
+}

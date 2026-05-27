@@ -673,6 +673,7 @@ mod tests {
 
     fn make_trace_a() -> ExecutionTrace {
         ExecutionTrace {
+            schema_version: Some(crate::output::SCHEMA_VERSION.to_string()),
             label: Some("v1.0 baseline".to_string()),
             contract: Some("token.wasm".to_string()),
             function: Some("transfer".to_string()),
@@ -721,6 +722,7 @@ mod tests {
 
     fn make_trace_b() -> ExecutionTrace {
         ExecutionTrace {
+            schema_version: Some(crate::output::SCHEMA_VERSION.to_string()),
             label: Some("v1.1 optimized".to_string()),
             contract: Some("token.wasm".to_string()),
             function: Some("transfer".to_string()),
