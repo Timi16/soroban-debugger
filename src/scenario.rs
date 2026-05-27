@@ -156,14 +156,11 @@ pub fn run_scenario(args: ScenarioArgs, _verbosity: Verbosity) -> Result<()> {
     let mut all_passed = true;
     let mut variables: HashMap<String, String> = HashMap::new();
 
-    let include_tags: Option<Vec<String>> = args
-        .tags
-        .as_ref()
-        .map(|s| s.split(',').map(|t| t.trim().to_string()).collect());
-    let exclude_tags: Option<Vec<String>> = args
-        .exclude_tags
-        .as_ref()
-        .map(|s| s.split(',').map(|t| t.trim().to_string()).collect());
+    let include_tags: Option<Vec<String>> = args.tags.as_deref().map(parse_tag_list);
+    let exclude_tags: Option<Vec<String>> = args.exclude_tags.as_deref().map(parse_tag_list);
+
+    validate_tag_selection(include_tags.as_deref(), exclude_tags.as_deref())?;
+    print_tag_summary(include_tags.as_deref(), exclude_tags.as_deref());
 
     for (i, step) in steps.iter().enumerate() {
         let step_label = step.name.as_deref().unwrap_or(&step.function);
@@ -559,6 +556,78 @@ fn resolve_step_timeout(
         .or(scenario_default_timeout_secs)
         .or(cli_timeout_secs)
         .unwrap_or(DEFAULT_EXECUTION_TIMEOUT_SECS)
+}
+
+/// Parse a comma-separated list of tags into a normalized, de-duplicated Vec.
+/// Whitespace around each tag is trimmed and empty entries are dropped. The
+/// original ordering of first appearance is preserved so error messages match
+/// what the user typed.
+pub(crate) fn parse_tag_list(raw: &str) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for piece in raw.split(',') {
+        let trimmed = piece.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if seen.insert(trimmed.to_string()) {
+            out.push(trimmed.to_string());
+        }
+    }
+    out
+}
+
+/// Reject a tag selection where the include and exclude sets overlap. An
+/// overlap would mean the same step is required to be both kept and dropped,
+/// which is almost always a CLI typo and should fail fast with a clear
+/// message rather than silently dropping every step that carries the
+/// conflicting tag.
+pub(crate) fn validate_tag_selection(
+    include: Option<&[String]>,
+    exclude: Option<&[String]>,
+) -> Result<()> {
+    let (Some(includes), Some(excludes)) = (include, exclude) else {
+        return Ok(());
+    };
+    let exclude_set: HashSet<&str> = excludes.iter().map(String::as_str).collect();
+    let mut conflicts: Vec<&str> = includes
+        .iter()
+        .map(String::as_str)
+        .filter(|tag| exclude_set.contains(tag))
+        .collect();
+    conflicts.sort();
+    conflicts.dedup();
+    if conflicts.is_empty() {
+        return Ok(());
+    }
+    Err(DebuggerError::ExecutionError(format!(
+        "Tag selection conflict: tag(s) [{}] appear in both --tags and --exclude-tags. \
+         Pick a side: include the tag (and drop it from --exclude-tags) or exclude it \
+         (and drop it from --tags).",
+        conflicts.join(", ")
+    ))
+    .into())
+}
+
+/// Print which tags will be included / excluded so the user can confirm the
+/// effective filter before any steps run. Silent when neither flag is set.
+pub(crate) fn print_tag_summary(include: Option<&[String]>, exclude: Option<&[String]>) {
+    if let Some(includes) = include {
+        if !includes.is_empty() {
+            println!(
+                "{}",
+                Formatter::info(format!("Including tags: [{}]", includes.join(", ")))
+            );
+        }
+    }
+    if let Some(excludes) = exclude {
+        if !excludes.is_empty() {
+            println!(
+                "{}",
+                Formatter::info(format!("Excluding tags: [{}]", excludes.join(", ")))
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1016,5 +1085,62 @@ function = "increment"
         assert_eq!(err.len(), 2);
         assert!(err[0].contains("CPU budget assertion failed"));
         assert!(err[1].contains("Memory budget assertion failed"));
+    }
+
+    #[test]
+    fn parse_tag_list_trims_whitespace_and_drops_empty() {
+        assert_eq!(
+            parse_tag_list("  smoke ,fast,   ,fast  ,perf"),
+            vec!["smoke".to_string(), "fast".to_string(), "perf".to_string()]
+        );
+    }
+
+    #[test]
+    fn parse_tag_list_handles_empty_input() {
+        assert!(parse_tag_list("").is_empty());
+        assert!(parse_tag_list("   ").is_empty());
+        assert!(parse_tag_list(",,, ,").is_empty());
+    }
+
+    #[test]
+    fn validate_tag_selection_allows_disjoint_sets() {
+        let include = vec!["smoke".to_string(), "fast".to_string()];
+        let exclude = vec!["slow".to_string()];
+        assert!(validate_tag_selection(Some(&include), Some(&exclude)).is_ok());
+    }
+
+    #[test]
+    fn validate_tag_selection_allows_either_unset() {
+        let include = vec!["smoke".to_string()];
+        assert!(validate_tag_selection(Some(&include), None).is_ok());
+        assert!(validate_tag_selection(None, Some(&include)).is_ok());
+        assert!(validate_tag_selection(None, None).is_ok());
+    }
+
+    #[test]
+    fn validate_tag_selection_rejects_overlap() {
+        let include = vec!["smoke".to_string(), "fast".to_string()];
+        let exclude = vec!["slow".to_string(), "fast".to_string()];
+        let err = validate_tag_selection(Some(&include), Some(&exclude))
+            .expect_err("overlap must be rejected");
+        let msg = format!("{err}");
+        assert!(
+            msg.contains("fast"),
+            "error should name conflicting tag, got: {msg}"
+        );
+        assert!(msg.contains("Tag selection conflict"));
+    }
+
+    #[test]
+    fn validate_tag_selection_reports_all_conflicts_once() {
+        let include = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let exclude = vec!["c".to_string(), "a".to_string(), "a".to_string()];
+        let err = validate_tag_selection(Some(&include), Some(&exclude)).unwrap_err();
+        let msg = format!("{err}");
+        // both 'a' and 'c' conflict; 'a' must not be duplicated in the message
+        assert!(
+            msg.contains("a, c"),
+            "expected sorted unique conflicts in: {msg}"
+        );
     }
 }
