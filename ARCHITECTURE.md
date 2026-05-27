@@ -86,7 +86,7 @@ graph TD
 
 ## Key Design Decisions
 
-1. **Direct `soroban-env-host` Integration**: We integrate directly with the Soroban host environment to get fine-grained control and access to internal states (budget, storage) that higher-level SDKs might abstract away.
+1. **Direct `soroban-env-host` Integration**: We integrate directly with the Soroban host environment to get fine-grained control and access to internal states (budget, storage) that higher-level SDKs might abstract away. See [`docs/design-soroban-env-host.md`](docs/design-soroban-env-host.md) for the full rationale, tradeoffs we accept, and the rules that govern when SDK-level dependencies are still appropriate (fixtures, sample tests).
 2. **Separation of Engine and Executor**: By decoupling the debugging logic (`DebuggerEngine`) from the execution environment (`ContractExecutor`), we make the system more modular and easier to test.
 3. **Inspector Pattern**: Using dedicated inspector modules allows us to add new ways to visualize contract state without cluttering the core execution logic.
 
