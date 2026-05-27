@@ -72,6 +72,26 @@ Top consumers (CPU):
 soroban-debugger budget-diff --before baseline.json --after optimized.json
 ```
 
+### Choosing a report format for `optimize`
+
+The `optimize` command writes the same content in two formats; pick the one
+your downstream consumer expects:
+
+```bash
+# Default: human-readable markdown (existing behavior)
+soroban-debugger optimize --contract contract.wasm --function transfer
+
+# Structured JSON for CI gates, IDE plugins, or dashboards
+soroban-debugger optimize --contract contract.wasm --function transfer \
+  --format json --output optimize.json
+```
+
+`--format` is independent of `--output`: `--format` chooses the content
+(`pretty` markdown or `json`); `--output` chooses the destination (stdout
+when omitted, a file when set). JSON output is keyed by `schema_version`,
+`metadata`, `hotspots`, and `suggestions`, so consumers can pin to a
+schema version and ignore fields they don't understand.
+
 ---
 
 ## 3. Optimization Pattern 1: Redundant Storage Reads

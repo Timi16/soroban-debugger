@@ -763,6 +763,13 @@ pub struct OptimizeArgs {
     /// Deprecated: use --network-snapshot instead
     #[arg(long, hide = true, alias = "snapshot")]
     pub snapshot: Option<PathBuf>,
+
+    /// Output format for the optimization report (pretty markdown or structured JSON).
+    /// Pretty is the default and preserves prior behavior. JSON emits suggestions,
+    /// hotspots, and metadata in a single object so the report can be piped into
+    /// other tools.
+    #[arg(long, value_enum, default_value_t = OutputFormat::Pretty)]
+    pub format: OutputFormat,
 }
 
 #[cfg(test)]

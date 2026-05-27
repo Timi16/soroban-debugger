@@ -4,7 +4,7 @@
 .SH NAME
 optimize \- Analyze contract and generate gas optimization suggestions
 .SH SYNOPSIS
-\fBoptimize\fR <\fB\-c\fR|\fB\-\-contract\fR> [\fB\-f\fR|\fB\-\-function\fR] [\fB\-a\fR|\fB\-\-args\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-\-network\-snapshot\fR] [\fB\-\-expected\-hash\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBoptimize\fR <\fB\-c\fR|\fB\-\-contract\fR> [\fB\-f\fR|\fB\-\-function\fR] [\fB\-a\fR|\fB\-\-args\fR] [\fB\-o\fR|\fB\-\-output\fR] [\fB\-s\fR|\fB\-\-storage\fR] [\fB\-\-network\-snapshot\fR] [\fB\-\-expected\-hash\fR] [\fB\-\-format\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Analyze contract and generate gas optimization suggestions
 .SH OPTIONS
@@ -29,6 +29,19 @@ Network snapshot file to load before analysis
 .TP
 \fB\-\-expected\-hash\fR \fI<EXPECTED_HASH>\fR
 Expected SHA\-256 hash of the WASM file. If provided, loading will fail if the computed hash does not match
+.TP
+\fB\-\-format\fR \fI<FORMAT>\fR [default: pretty]
+Output format for the optimization report (pretty markdown or structured JSON). Pretty is the default and preserves prior behavior. JSON emits suggestions, hotspots, and metadata in a single object so the report can be piped into other tools
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+pretty
+.IP \(bu 2
+json
+.RE
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help

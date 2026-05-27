@@ -1167,6 +1167,7 @@ fn build_execution_trace(
     }
 
     crate::compare::ExecutionTrace {
+        schema_version: Some(crate::output::SCHEMA_VERSION.to_string()),
         label: Some(format!("Execution of {} on {}", function, contract_path)),
         contract: Some(contract_path.to_string()),
         function: Some(function.to_string()),
@@ -1692,10 +1693,14 @@ pub fn optimize(args: OptimizeArgs, _verbosity: Verbosity) -> Result<()> {
 
     let contract_path_str = args.contract.to_string_lossy().to_string();
     let report = optimizer.generate_report(&contract_path_str);
-    let markdown = optimizer.generate_markdown_report(&report);
+
+    let rendered = match args.format {
+        OutputFormat::Pretty => optimizer.generate_markdown_report(&report),
+        OutputFormat::Json => render_optimize_report_json(&report)?,
+    };
 
     if let Some(output_path) = &args.output {
-        fs::write(output_path, &markdown).map_err(|e| {
+        fs::write(output_path, &rendered).map_err(|e| {
             DebuggerError::FileError(format!(
                 "Failed to write report to {:?}: {}",
                 output_path, e
@@ -1707,10 +1712,72 @@ pub fn optimize(args: OptimizeArgs, _verbosity: Verbosity) -> Result<()> {
         ));
         logging::log_optimization_report(&output_path.to_string_lossy());
     } else {
-        logging::log_display(&markdown, logging::LogLevel::Info);
+        logging::log_display(&rendered, logging::LogLevel::Info);
     }
 
     Ok(())
+}
+
+/// Serialize an `OptimizationReport` to a stable JSON document for the
+/// `optimize --format json` flag. The shape is intentionally flat and uses
+/// strings (not enum discriminants) for `priority` and `category` so external
+/// tools — dashboards, CI gates, IDE plugins — can consume it without needing
+/// to track internal enum names.
+fn render_optimize_report_json(
+    report: &crate::profiler::analyzer::OptimizationReport,
+) -> Result<String> {
+    let suggestions: Vec<serde_json::Value> = report
+        .suggestions
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "category": s.category,
+                "title": s.title,
+                "description": s.description,
+                "estimated_cpu_savings": s.estimated_cpu_savings,
+                "estimated_memory_savings": s.estimated_memory_savings,
+                "location": s.location,
+                "priority": s.priority.to_string(),
+            })
+        })
+        .collect();
+
+    let hotspots: Vec<serde_json::Value> = report
+        .functions
+        .iter()
+        .map(|f| {
+            serde_json::json!({
+                "name": f.name,
+                "cpu_instructions": f.total_cpu,
+                "memory_bytes": f.total_memory,
+                "wall_time_ms": f.wall_time_ms as u64,
+            })
+        })
+        .collect();
+
+    let doc = serde_json::json!({
+        "schema_version": crate::output::SCHEMA_VERSION,
+        "kind": "optimize_report",
+        "contract": report.contract_path,
+        "metadata": {
+            "total_cpu_instructions": report.total_cpu,
+            "total_memory_bytes": report.total_memory,
+            "potential_cpu_savings": report.potential_cpu_savings,
+            "potential_memory_savings": report.potential_memory_savings,
+            "suggestion_count": report.suggestions.len(),
+            "function_count": report.functions.len(),
+        },
+        "hotspots": hotspots,
+        "suggestions": suggestions,
+    });
+
+    serde_json::to_string_pretty(&doc).map_err(|e| {
+        DebuggerError::FileError(format!(
+            "Failed to serialize optimize report as JSON: {}",
+            e
+        ))
+        .into()
+    })
 }
 
 /// ✅ Execute the profile command (hotspots + suggestions)
@@ -1859,16 +1926,26 @@ pub fn replay(args: ReplayArgs, verbosity: Verbosity) -> Result<()> {
     print_info(format!("Loading trace file: {:?}", args.trace_file));
     let original_trace = crate::compare::ExecutionTrace::from_file(&args.trace_file)?;
 
-    // Determine which contract to use
+    // Fail fast on malformed or unsupported-schema traces before touching the
+    // executor. validate_for_replay knows whether --contract covers a missing
+    // trace.contract, so it does the contract-existence check for us.
+    original_trace.validate_for_replay(args.contract.as_deref())?;
+
+    if let Some(version) = original_trace.schema_version.as_deref() {
+        print_info(format!("Trace schema version: {}", version));
+    }
+
+    // Determine which contract to use (validate_for_replay guarantees at
+    // least one of the two is set).
     let contract_path = if let Some(path) = &args.contract {
         path.clone()
-    } else if let Some(contract_str) = &original_trace.contract {
-        std::path::PathBuf::from(contract_str)
     } else {
-        return Err(DebuggerError::ExecutionError(
-            "No contract path specified and trace file does not contain contract path".to_string(),
+        std::path::PathBuf::from(
+            original_trace
+                .contract
+                .as_deref()
+                .expect("validate_for_replay guarantees a contract source"),
         )
-        .into());
     };
 
     print_info(format!("Loading contract: {:?}", contract_path));
@@ -3056,6 +3133,68 @@ mod tests {
         assert!(json.get("plugins").is_some());
         assert!(json.get("protocol").is_some());
         assert!(json.get("vscode_extension").is_some());
+    }
+
+    #[test]
+    fn optimize_report_json_shape_is_stable() {
+        use crate::profiler::analyzer::{
+            FunctionProfile, OptimizationReport, OptimizationSuggestion, Priority,
+        };
+        use std::collections::HashMap;
+
+        let suggestion = OptimizationSuggestion {
+            category: "Expensive Operations".to_string(),
+            title: "High CPU usage in function 'transfer'".to_string(),
+            description: "Function uses many CPU instructions.".to_string(),
+            estimated_cpu_savings: 250,
+            estimated_memory_savings: 64,
+            location: "transfer".to_string(),
+            priority: Priority::High,
+        };
+        let function = FunctionProfile {
+            name: "transfer".to_string(),
+            total_cpu: 2_500,
+            total_memory: 640,
+            wall_time_ms: 7,
+            operations: Vec::new(),
+            storage_accesses: HashMap::new(),
+            call_tree: None,
+            timeline: None,
+        };
+        let report = OptimizationReport {
+            contract_path: "fixtures/transfer.wasm".to_string(),
+            functions: vec![function],
+            suggestions: vec![suggestion],
+            total_cpu: 2_500,
+            total_memory: 640,
+            potential_cpu_savings: 250,
+            potential_memory_savings: 64,
+        };
+
+        let rendered = render_optimize_report_json(&report).expect("json render");
+        let value: serde_json::Value = serde_json::from_str(&rendered).expect("valid json");
+
+        assert_eq!(value["kind"], "optimize_report");
+        assert_eq!(value["contract"], "fixtures/transfer.wasm");
+        assert!(value["schema_version"].is_string());
+        assert_eq!(value["metadata"]["total_cpu_instructions"], 2_500);
+        assert_eq!(value["metadata"]["potential_cpu_savings"], 250);
+        assert_eq!(value["metadata"]["suggestion_count"], 1);
+        assert_eq!(value["metadata"]["function_count"], 1);
+
+        let hotspots = value["hotspots"].as_array().expect("hotspots is array");
+        assert_eq!(hotspots.len(), 1);
+        assert_eq!(hotspots[0]["name"], "transfer");
+        assert_eq!(hotspots[0]["cpu_instructions"], 2_500);
+        assert_eq!(hotspots[0]["wall_time_ms"], 7);
+
+        let suggestions = value["suggestions"]
+            .as_array()
+            .expect("suggestions is array");
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(suggestions[0]["priority"], "High");
+        assert_eq!(suggestions[0]["category"], "Expensive Operations");
+        assert_eq!(suggestions[0]["estimated_cpu_savings"], 250);
     }
 }
 //
