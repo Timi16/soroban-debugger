@@ -29,6 +29,7 @@ Welcome to the Soroban Debugger documentation. This index helps you navigate the
 ## 🎓 Tutorials
 - [Debugging Auth Errors](tutorials/debug-auth-errors.md) — Diagnosing `require_auth()` failures.
 - [Scenario Runner Cookbook](tutorials/scenario-runner.md) — Writing automated integration tests.
+- [Upgrade Review](tutorials/upgrade-review.md) — Interpreting `upgrade-check` output and upgrade classes.
 - [Plugin Development Tutorial](tutorials/plugin-development.md) — Build, install, and iterate on a plugin end-to-end.
 - [Symbolic Analysis Budgets](tutorials/symbolic-analysis-budgets.md) — Configuring symbolic exploration.
 - [Understanding Budget Trends](tutorials/understanding-budget.md) — Visualizing resource usage.

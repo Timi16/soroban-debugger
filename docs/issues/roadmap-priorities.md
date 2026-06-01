@@ -91,7 +91,7 @@ useful order instead of re-triaging the whole epic every time.
 | I-031 | Add `inspect --format json` example output to `wasm-artifact-metadata.md` | P2 | S | Docs | — | 2 |
 | I-032 | Expand `docs/watch-mode.md` with polling interval and debounce details | P2 | S | Docs | — | 2 |
 | I-033 | Clarify CLI vs. extension behavior in `docs/storage-snapshot.md` | P1 | S | Docs | — | 2 |
-| I-034 | Map contract change types to upgrade classes in `upgrade-classes.md` | P1 | M | Docs | — | 2 |
+| ~I-034~ | ~Map contract change types to upgrade classes in `upgrade-classes.md`~ | P1 | M | Docs | — | 2 |
 | I-035 | Document full batch result JSON fields in `docs/batch-execution.md` | P2 | S | Docs | — | 2 |
 | I-036 | Add internal TOC to `docs/optimization-guide.md` | P2 | XS | Docs | — | 2 |
 | I-037 | Add DWARF-absent heuristic fallback to `source-level-debugging.md` | P1 | S | Docs | — | 2 |

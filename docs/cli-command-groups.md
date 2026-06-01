@@ -18,7 +18,7 @@ Commands used for executing contract functions and interactive troubleshooting.
 Commands for static analysis, profiling, and version comparisons.
 
 - **`inspect`**: View contract metadata, exported functions, and DWARF source mappings without executing code.
-- **`upgrade-check`**: Compares two WASM files to identify breaking API changes or storage layout shifts.
+- **`upgrade-check`**: Compares two WASM files and reports upgrade classes based on exported function compatibility and optional execution diffs. See [Upgrade Classes](upgrade-classes.md) for the exact mapping.
 - **`optimize`**: Provides automated suggestions for reducing gas (CPU/memory) consumption.
 - **`profile`**: Identifies performance hotspots and budget-heavy instruction sequences.
 - **`compare`**: Renders a side-by-side diff of two execution traces to catch regressions.

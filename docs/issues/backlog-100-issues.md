@@ -83,7 +83,7 @@ Roadmap view: [Section C priorities](roadmap-priorities.md#section-c--feature-re
 - **I-031** `[DOC]` `docs/wasm-artifact-metadata.md` (1716 bytes) documents the metadata fields but doesn't show an example `inspect --format json` output that contains them.
 - **I-032** `[DOC]` `docs/watch-mode.md` (744 bytes) mentions the watch command but doesn't document the polling interval, file-glob support, or debounce behavior.
 - **I-033** `[DOC]` `docs/storage-snapshot.md` (1761 bytes) references `--import-storage` but the feature matrix shows this is `PARTIAL` in the extension (use `snapshotPath` instead) — the doc doesn't mention the distinction.
-- **I-034** `[DOC]` `docs/upgrade-classes.md` (1071 bytes) lists upgrade classes (Safe / Caution / Breaking) but doesn't explain what contract changes map to each class.
+- ~**I-034** `[DOC]` `docs/upgrade-classes.md` (1071 bytes) lists upgrade classes (Safe / Caution / Breaking) but doesn't explain what contract changes map to each class.~
 - **I-035** `[DOC]` `docs/batch-execution.md` references JSON format but doesn't document the full set of batch result fields (e.g., `duration_ms`, `error`) that appear in JSON output mode.
 - **I-036** `[DOC]` `docs/optimization-guide.md` (16 KB) is the longest doc in the set and has no internal TOC.
 - **I-037** `[DOC]` `docs/source-level-debugging.md` (3393 bytes) mentions DWARF but doesn't explain what happens when DWARF info is absent (heuristic fallback) — covered in the FAQ but not here.
