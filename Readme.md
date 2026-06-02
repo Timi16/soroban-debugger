@@ -260,9 +260,11 @@ soroban-debug upgrade-check --old current.wasm --new upgraded.wasm
 ```
 
 The debugger runs parallel traces and classifies the upgrade:
-- **Safe:** No breaking changes, stable inputs execution.
-- **Caution:** Non-breaking changes like new map arguments or endpoints.
-- **Breaking:** Removed functions, changed signatures, or execution panic regressions.
+- **Safe:** The exported surface is unchanged, and sampled execution matches.
+- **Caution:** New exported functions were added without changing existing signatures.
+- **Breaking:** Functions were removed, signatures changed, or sampled execution diverged.
+
+See [docs/upgrade-classes.md](docs/upgrade-classes.md) for the full mapping between contract changes and upgrade classes.
 
 ### Completions Command
 

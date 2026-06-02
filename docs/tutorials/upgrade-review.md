@@ -16,7 +16,8 @@ soroban-debug upgrade-check --old old.wasm --new new.wasm
 ```
 
 ## Step 3: Interpret the results
-The tool classifies the upgrade into one of three categories:
-- **Safe:** No exported functions were removed, and signatures match.
-- **Caution:** Non-breaking additions (like new functions) were found.
-- **Breaking:** Functions were removed, or arguments changed in incompatible ways.
+The tool classifies the upgrade into one of three categories. For the full mapping between contract changes and classes, see [Upgrade Classes](../upgrade-classes.md).
+
+- **Safe:** The exported surface is unchanged, and any sampled `--test-inputs` executions match.
+- **Caution:** New exported functions were added, but existing signatures still match.
+- **Breaking:** Functions were removed, signatures changed, or a sampled execution produced a different result.
