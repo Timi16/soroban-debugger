@@ -1,7 +1,24 @@
-# Resource Timeline
+# Resource Timeline & Execution Visualizer Specification
 
-The Resource Timeline feature provides sequential tracking of CPU instructions and Memory allocations over a contract execution run. This allows operators to answer "Where did the resource spike happen?" without manually stepping the exact bounds through trial and error.
+Technical specification for CPU instruction, memory, and storage read/write timeline visualization in the Soroban Debugger.
 
-## Usage
-The timeline tracks discrete checkpoints when hooks enter or exit calls. All data aggregates sequentially and includes delta metrics (+CPU / +Mem) relative to the prior checkpoint.
-This is fully readable in both the command line output and generated profile artifacts.
+---
+
+## 1. Execution Step Resource Tracking
+
+For each execution step $S_k$:
+
+$$\Delta \text{CPU}_k = \text{CPU}_k - \text{CPU}_{k-1}$$
+$$\Delta \text{Mem}_k = \text{Memory}_k - \text{Memory}_{k-1}$$
+
+---
+
+## 2. Resource Spike Detection
+
+- **Threshold Alert:** Highlights execution steps consuming $> 100,000$ CPU instructions in a single step with a visual warning tag.
+
+---
+
+## References
+
+- Issue reference: Fixes #933
