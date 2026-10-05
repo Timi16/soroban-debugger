@@ -3,8 +3,8 @@
 
 #[cfg(test)]
 mod tests {
-    use soroban_debugger::cli::args::{Cli, Commands, SymbolicArgs};
     use clap::Parser;
+    use soroban_debugger::cli::args::{Cli, Commands};
 
     /// Test that --seed and --replay are mutually exclusive.
     #[test]
@@ -23,8 +23,11 @@ mod tests {
         ]);
 
         // Clap should reject this due to conflicts_with
-        assert!(result.is_err(), "Expected error when both --seed and --replay are provided");
-        let err = result.unwrap_err();
+        assert!(
+            result.is_err(),
+            "Expected error when both --seed and --replay are provided"
+        );
+        let err = result.err().expect("expected a parse error");
         let err_msg = err.to_string();
         assert!(
             err_msg.contains("seed") && err_msg.contains("replay"),
@@ -100,4 +103,3 @@ mod tests {
         assert_eq!(args.replay, None);
     }
 }
-

@@ -208,8 +208,6 @@ impl SymbolicAnalyzer {
         Self
     }
 
-
-
     fn grade_path(
         outcome: &std::result::Result<String, String>,
         path_decisions: &[crate::server::protocol::DynamicTraceEvent],
@@ -412,7 +410,14 @@ impl SymbolicAnalyzer {
 
             match executor_res {
                 Ok(val) => {
-                    Self::record_outcome(&mut report, &mut seen_inputs, args_json, Ok(val), trace, config);
+                    Self::record_outcome(
+                        &mut report,
+                        &mut seen_inputs,
+                        args_json,
+                        Ok(val),
+                        trace,
+                        config,
+                    );
                 }
                 Err(err) => {
                     // Track the target function as reached
@@ -427,7 +432,7 @@ impl SymbolicAnalyzer {
                     );
                 }
             }
-            
+
             report.paths_explored += 1;
         }
 
@@ -435,12 +440,13 @@ impl SymbolicAnalyzer {
         report.metadata.distinct_paths_recorded = report.paths.len();
         report.metadata.unique_functions_reached = reached_functions.len();
         // Duplicates = total attempts - distinct paths recorded
-        report.metadata.duplicates_suppressed = report.paths_explored.saturating_sub(report.paths.len());
-        
+        report.metadata.duplicates_suppressed =
+            report.paths_explored.saturating_sub(report.paths.len());
+
         // Estimate branches touched: each distinct path represents at least one branch decision
         // This is a conservative estimate - in reality, each path may touch multiple branches
         report.metadata.branches_touched = report.paths.len();
-        
+
         if report.metadata.truncated_by_input_cap {
             report.metadata.truncation_reasons.push(format!(
                 "input combination cap reached at {} generated combinations",
@@ -875,7 +881,7 @@ impl SymbolicAnalyzer {
             report.metadata.truncated_by_timeout
         )
         .unwrap();
-        
+
         // Add coverage metrics to TOML
         writeln!(
             toml,
@@ -907,7 +913,7 @@ impl SymbolicAnalyzer {
             report.metadata.exploration_cap_reached
         )
         .unwrap();
-        
+
         match report.metadata.seed {
             Some(seed) => writeln!(toml, "seed = {}", seed).unwrap(),
             None => writeln!(
@@ -1069,6 +1075,7 @@ mod tests {
             "[0]",
             Ok("1".into()),
             Vec::new(),
+            &SymbolicConfig::default(),
         );
         SymbolicAnalyzer::record_outcome(
             &mut report,
@@ -1076,6 +1083,7 @@ mod tests {
             "[1]",
             Ok("1".into()),
             Vec::new(),
+            &SymbolicConfig::default(),
         );
 
         assert_eq!(report.paths.len(), 2);
@@ -1118,6 +1126,7 @@ mod tests {
             "[0]",
             Ok("1".into()),
             Vec::new(),
+            &SymbolicConfig::default(),
         );
         SymbolicAnalyzer::record_outcome(
             &mut report,
@@ -1125,6 +1134,7 @@ mod tests {
             "[0]",
             Ok("1".into()),
             Vec::new(),
+            &SymbolicConfig::default(),
         );
 
         assert_eq!(report.paths.len(), 1);
@@ -1276,6 +1286,8 @@ mod tests {
                 return_value: Some("1".to_string()),
                 panic: None,
                 path_decisions: Vec::new(),
+                severity: "low".to_string(),
+                rule_mappings: Vec::new(),
             }],
             metadata: SymbolicReportMetadata {
                 config: SymbolicConfig::fast(),
@@ -1409,6 +1421,7 @@ mod tests {
             max_depth: 3,
             seed: None,
             storage_seed: None,
+            storage_read_pressure_threshold: None,
         };
 
         let report = analyzer
@@ -1434,8 +1447,7 @@ mod tests {
         );
         // Branches touched should equal distinct paths recorded
         assert_eq!(
-            report.metadata.branches_touched,
-            report.metadata.distinct_paths_recorded,
+            report.metadata.branches_touched, report.metadata.distinct_paths_recorded,
             "Branches touched should equal distinct paths"
         );
     }
@@ -1452,6 +1464,7 @@ mod tests {
             max_depth: 2,
             seed: None,
             storage_seed: None,
+            storage_read_pressure_threshold: None,
         };
 
         let report = analyzer
@@ -1463,8 +1476,7 @@ mod tests {
             report.paths_explored >= report.metadata.distinct_paths_recorded,
             "Explored paths should be >= distinct paths"
         );
-        let calculated_duplicates =
-            report.paths_explored.saturating_sub(report.paths.len());
+        let calculated_duplicates = report.paths_explored.saturating_sub(report.paths.len());
         assert_eq!(
             report.metadata.duplicates_suppressed, calculated_duplicates,
             "Duplicates should match calculated value"
@@ -1483,6 +1495,7 @@ mod tests {
             max_depth: 3,
             seed: None,
             storage_seed: None,
+            storage_read_pressure_threshold: None,
         };
 
         let report = analyzer
@@ -1497,10 +1510,10 @@ mod tests {
             report.metadata.truncated_by_path_cap,
             "Should be truncated by path cap"
         );
-        assert_eq!(
-            report.paths_explored, 2,
-            "Should stop at path cap"
-        );
+        assert_eq!(report.paths_explored, 2, "Should stop at path cap");
+    }
+
+    #[test]
     fn test_generate_seeds_complex_types() {
         let analyzer = SymbolicAnalyzer;
         let config = SymbolicConfig::default();

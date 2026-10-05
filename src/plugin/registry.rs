@@ -133,9 +133,7 @@ pub fn get_global_trust_report() -> Vec<PluginTrustSummary> {
 }
 
 pub fn get_global_plugin_info(name: &str) -> Option<PluginTrustSummary> {
-    let Some(registry) = GLOBAL_PLUGIN_REGISTRY.get() else {
-        return None;
-    };
+    let registry = GLOBAL_PLUGIN_REGISTRY.get()?;
 
     let Ok(registry) = registry.read() else {
         return None;

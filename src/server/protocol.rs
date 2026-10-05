@@ -158,6 +158,93 @@ pub struct RemoteSessionInfo {
     pub label: Option<String>,
 }
 
+/// Feature capabilities a debug server supports. Exchanged during the
+/// handshake so clients can gate optional features (Issue #837).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ServerCapabilities {
+    pub conditional_breakpoints: bool,
+    pub source_breakpoints: bool,
+    pub evaluate: bool,
+    pub tls: bool,
+    pub token_auth: bool,
+    pub session_lifecycle: bool,
+    pub repeat_execution: bool,
+    pub symbolic_analysis: bool,
+    pub snapshot_loading: bool,
+    pub dynamic_trace_events: bool,
+}
+
+impl ServerCapabilities {
+    /// Capabilities supported by this build of the server.
+    pub fn current() -> Self {
+        Self {
+            conditional_breakpoints: true,
+            source_breakpoints: true,
+            evaluate: true,
+            tls: true,
+            token_auth: true,
+            session_lifecycle: true,
+            repeat_execution: true,
+            symbolic_analysis: false,
+            snapshot_loading: true,
+            dynamic_trace_events: true,
+        }
+    }
+
+    /// Returns the names of capabilities required by `self` that `other`
+    /// does not support.
+    pub fn unsupported_by(&self, other: &Self) -> Vec<&'static str> {
+        let mut missing = Vec::new();
+        let pairs = [
+            (
+                self.conditional_breakpoints,
+                other.conditional_breakpoints,
+                "conditional_breakpoints",
+            ),
+            (
+                self.source_breakpoints,
+                other.source_breakpoints,
+                "source_breakpoints",
+            ),
+            (self.evaluate, other.evaluate, "evaluate"),
+            (self.tls, other.tls, "tls"),
+            (self.token_auth, other.token_auth, "token_auth"),
+            (
+                self.session_lifecycle,
+                other.session_lifecycle,
+                "session_lifecycle",
+            ),
+            (
+                self.repeat_execution,
+                other.repeat_execution,
+                "repeat_execution",
+            ),
+            (
+                self.symbolic_analysis,
+                other.symbolic_analysis,
+                "symbolic_analysis",
+            ),
+            (
+                self.snapshot_loading,
+                other.snapshot_loading,
+                "snapshot_loading",
+            ),
+            (
+                self.dynamic_trace_events,
+                other.dynamic_trace_events,
+                "dynamic_trace_events",
+            ),
+        ];
+        for (required, supported, name) in pairs {
+            if required && !supported {
+                missing.push(name);
+            }
+        }
+        missing
+    }
+}
+
 /// Wire protocol messages for remote debugging
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -176,6 +263,9 @@ pub enum DebugRequest {
         session_label: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         reconnect_session_id: Option<String>,
+        /// Capabilities the client requires the server to support.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        required_capabilities: Option<ServerCapabilities>,
     },
 
     /// Authenticate with the server
@@ -303,6 +393,10 @@ pub enum DebugResponse {
         /// transient disconnect. Absent on servers that do not support reconnection.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         reconnect_id: Option<String>,
+        /// Capabilities supported by the server, so the client can gate
+        /// optional features before issuing unsupported requests.
+        #[serde(default)]
+        server_capabilities: ServerCapabilities,
     },
 
     /// Handshake failed due to protocol mismatch.
@@ -411,18 +505,6 @@ pub enum DebugResponse {
 
     /// Breakpoint cleared
     BreakpointCleared { id: String },
-
-    /// Existing session was reattached successfully.
-    ReconnectAck {
-        session_id: String,
-        paused: bool,
-        current_function: Option<String>,
-        breakpoints: Vec<String>,
-        step_count: u64,
-    },
-
-    /// Requested reconnection target is no longer available.
-    SessionExpired { message: String },
 
     /// List of breakpoints
     BreakpointsList {

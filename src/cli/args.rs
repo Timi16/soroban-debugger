@@ -115,6 +115,10 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub no_banner: bool,
 
+    /// Pretty-print JSON output (multi-line, indented)
+    #[arg(long, global = true)]
+    pub pretty: bool,
+
     /// Override the history file location (useful for CI, sandboxes, and per-project isolation)
     ///
     /// Equivalent to setting `SOROBAN_DEBUG_HISTORY_FILE`.
@@ -764,6 +768,23 @@ pub struct OptimizeArgs {
     pub expected_hash: Option<String>,
 }
 
+#[derive(Parser)]
+pub struct PluginTrustReportArgs {
+    /// Output format: pretty (default) or json
+    #[arg(long, value_enum, default_value_t = OutputFormat::Pretty)]
+    pub format: OutputFormat,
+}
+
+#[derive(Parser)]
+pub struct PluginInspectArgs {
+    /// Name of the plugin to inspect
+    pub name: String,
+
+    /// Output format: pretty (default) or json
+    #[arg(long, value_enum, default_value_t = OutputFormat::Pretty)]
+    pub format: OutputFormat,
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Cli, Commands, OutputFormat, SymbolicProfile};
@@ -974,20 +995,21 @@ mod tests {
             "contract.wasm",
             "--function",
             "increment",
-        ]).unwrap();
-        let Commands::Run(args) = cli.command.unwrap() else { panic!() };
+        ])
+        .unwrap();
+        let Commands::Run(args) = cli.command.unwrap() else {
+            panic!()
+        };
         assert_eq!(args.contract.unwrap().to_str().unwrap(), "contract.wasm");
     }
 
     #[test]
     fn inspect_accepts_deprecated_wasm_flag() {
-        let cli = Cli::try_parse_from([
-            "soroban-debug",
-            "inspect",
-            "--wasm",
-            "contract.wasm",
-        ]).unwrap();
-        let Commands::Inspect(args) = cli.command.unwrap() else { panic!() };
+        let cli =
+            Cli::try_parse_from(["soroban-debug", "inspect", "--wasm", "contract.wasm"]).unwrap();
+        let Commands::Inspect(args) = cli.command.unwrap() else {
+            panic!()
+        };
         assert_eq!(args.contract.to_str().unwrap(), "contract.wasm");
     }
 
@@ -1000,10 +1022,16 @@ mod tests {
             "contract.wasm",
             "--snapshot",
             "state.json",
-        ]).unwrap();
-        let Commands::Optimize(args) = cli.command.unwrap() else { panic!() };
+        ])
+        .unwrap();
+        let Commands::Optimize(args) = cli.command.unwrap() else {
+            panic!()
+        };
         assert_eq!(args.contract.to_str().unwrap(), "contract.wasm");
-        assert_eq!(args.network_snapshot.unwrap().to_str().unwrap(), "state.json");
+        assert_eq!(
+            args.network_snapshot.unwrap().to_str().unwrap(),
+            "state.json"
+        );
     }
 
     #[test]
@@ -1015,8 +1043,11 @@ mod tests {
             "contract.wasm",
             "--function",
             "increment",
-        ]).unwrap();
-        let Commands::Profile(args) = cli.command.unwrap() else { panic!() };
+        ])
+        .unwrap();
+        let Commands::Profile(args) = cli.command.unwrap() else {
+            panic!()
+        };
         assert_eq!(args.contract.to_str().unwrap(), "contract.wasm");
     }
 
@@ -1031,10 +1062,16 @@ mod tests {
             "state.json",
             "--function",
             "increment",
-        ]).unwrap();
-        let Commands::Interactive(args) = cli.command.unwrap() else { panic!() };
+        ])
+        .unwrap();
+        let Commands::Interactive(args) = cli.command.unwrap() else {
+            panic!()
+        };
         assert_eq!(args.contract.to_str().unwrap(), "contract.wasm");
-        assert_eq!(args.network_snapshot.unwrap().to_str().unwrap(), "state.json");
+        assert_eq!(
+            args.network_snapshot.unwrap().to_str().unwrap(),
+            "state.json"
+        );
     }
 
     #[test]
@@ -1046,12 +1083,17 @@ mod tests {
             "contract.wasm",
             "--snapshot",
             "state.json",
-        ]).unwrap();
-        let Commands::Repl(args) = cli.command.unwrap() else { panic!() };
+        ])
+        .unwrap();
+        let Commands::Repl(args) = cli.command.unwrap() else {
+            panic!()
+        };
         assert_eq!(args.contract.to_str().unwrap(), "contract.wasm");
-        assert_eq!(args.network_snapshot.unwrap().to_str().unwrap(), "state.json");
+        assert_eq!(
+            args.network_snapshot.unwrap().to_str().unwrap(),
+            "state.json"
+        );
     }
-}
 }
 
 #[derive(Parser)]
@@ -1253,6 +1295,10 @@ pub struct ReplayArgs {
     #[arg(short, long)]
     pub output: Option<PathBuf>,
 
+    /// Report format: pretty (default) or json
+    #[arg(long, value_enum, default_value_t = OutputFormat::Pretty)]
+    pub format: OutputFormat,
+
     /// Show verbose output during replay
     #[arg(short, long)]
     pub verbose: bool,
@@ -1413,6 +1459,16 @@ pub enum RemoteAction {
 
     /// Evaluate an expression in the current debug context
     Evaluate(RemoteEvaluateArgs),
+
+    /// Run connectivity preflight checks (connect, handshake, auth, ping)
+    Preflight(PreflightArgs),
+}
+
+#[derive(Parser)]
+pub struct PreflightArgs {
+    /// Output format: pretty (default) or json
+    #[arg(long = "output", value_enum, default_value_t = OutputFormat::Pretty)]
+    pub output_format: OutputFormat,
 }
 
 #[derive(Parser)]

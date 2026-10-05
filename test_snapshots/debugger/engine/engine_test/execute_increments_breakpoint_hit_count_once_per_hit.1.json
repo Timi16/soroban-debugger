@@ -1,0 +1,126 @@
+{
+  "generators": {
+    "address": 1,
+    "nonce": 0
+  },
+  "auth": [
+    [],
+    []
+  ],
+  "ledger": {
+    "protocol_version": 22,
+    "sequence_number": 0,
+    "timestamp": 0,
+    "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
+    "base_reserve": 0,
+    "min_persistent_entry_ttl": 4096,
+    "min_temp_entry_ttl": 16,
+    "max_entry_ttl": 6312000,
+    "ledger_entries": [
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "ledger_key_nonce": {
+                "nonce": 801925984706572462
+              }
+            },
+            "durability": "temporary"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "ledger_key_nonce": {
+                    "nonce": 801925984706572462
+                  }
+                },
+                "durability": "temporary",
+                "val": "void"
+              }
+            },
+            "ext": "v0"
+          },
+          6311999
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CBKMUZNFQIAL775XBB2W2GP5CNHBM5YGH6C3XB7AY6SUVO2IBU3VYK2V",
+            "key": "ledger_key_contract_instance",
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CBKMUZNFQIAL775XBB2W2GP5CNHBM5YGH6C3XB7AY6SUVO2IBU3VYK2V",
+                "key": "ledger_key_contract_instance",
+                "durability": "persistent",
+                "val": {
+                  "contract_instance": {
+                    "executable": {
+                      "wasm": "5be3612b8625f8a0bd7cdd12736995be4bba6726aa03ce55f33aa87f4bfd4eef"
+                    },
+                    "storage": null
+                  }
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_code": {
+            "hash": "5be3612b8625f8a0bd7cdd12736995be4bba6726aa03ce55f33aa87f4bfd4eef"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_code": {
+                "ext": {
+                  "v1": {
+                    "ext": "v0",
+                    "cost_inputs": {
+                      "ext": "v0",
+                      "n_instructions": 135,
+                      "n_functions": 8,
+                      "n_globals": 3,
+                      "n_table_entries": 0,
+                      "n_types": 6,
+                      "n_data_segments": 0,
+                      "n_elem_segments": 0,
+                      "n_imports": 5,
+                      "n_exports": 6,
+                      "n_data_segment_bytes": 0
+                    }
+                  }
+                },
+                "hash": "5be3612b8625f8a0bd7cdd12736995be4bba6726aa03ce55f33aa87f4bfd4eef",
+                "code": "0061736d01000000011e0660027e7e017e60017e017e60037e7e7e017e60017f006000017e600000021f05016c01300000016c01310000016901320001016901310001016c015f0002030908030401040405050505030100100619037f01418080c0000b7f00418080c0000b7f00418080c0000b073b06066d656d6f7279020003676574000809696e6372656d656e740009015f000c0a5f5f646174615f656e6403010b5f5f686561705f6261736503020aef02087102027e017f420021010240108680808000220242021080808080004201520d0002400240200242021081808080002201a741ff0171220341c100460d00024020034107470d00200142088721010c020b000b200110828080800021010b20002001370308420121010b200020013703000b0600428ed0000b3000024020004280808080808080c0007c42ffffffffffffffff00560d0020004208864207840f0b20001083808080000b4102017f017e23808080800041106b220024808080800020001085808080002000290308420020002802001b1087808080002101200041106a24808080800020010b7002017f027e23808080800041106b2200248080808000200010858080800002402000290308420020002802001b220142017c22022001590d00108a80808000000b108680808000200210878080800042021084808080001a20021087808080002102200041106a24808080800020020b0900108b80808000000b0300000b02000b004f0e636f6e747261637473706563763000000000000000000000000367657400000000000000000100000007000000000000000000000009696e6372656d656e74000000000000000000000100000007001e11636f6e7472616374656e766d6574617630000000000000001600000000006f0e636f6e74726163746d65746176300000000000000005727376657200000000000006312e39322e3000000000000000000008727373646b7665720000003032322e302e31312333346637663533616533316530666430326161623433366139383732653739666136373163613032"
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ]
+    ]
+  },
+  "events": []
+}

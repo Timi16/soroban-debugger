@@ -1470,8 +1470,14 @@ mod tests {
             msg.to_lowercase().contains("sha256"),
             "expected sha256 algorithm context in error, got: {msg}"
         );
-        assert!(msg.contains("wronghash999"), "expected hash missing from message: {msg}");
-        assert!(msg.contains("abcdef123456"), "computed hash missing from message: {msg}");
+        assert!(
+            msg.contains("wronghash999"),
+            "expected hash missing from message: {msg}"
+        );
+        assert!(
+            msg.contains("abcdef123456"),
+            "computed hash missing from message: {msg}"
+        );
     }
 
     // ── WASM test-module builder ──────────────────────────────────────────────

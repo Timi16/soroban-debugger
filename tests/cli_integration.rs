@@ -13,6 +13,3 @@ pub mod network;
 mod output_tests;
 #[path = "cli/run_tests.rs"]
 mod run_tests;
-
-use crate::cli::common::setup_cli_test;
-use fuel_cli::repl::commands::ReplCommand;

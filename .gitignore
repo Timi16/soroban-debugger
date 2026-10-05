@@ -6,7 +6,6 @@ target/
 **/*.rs.bk
 *.bak
 *.pdb
-Cargo.lock
 
 # IDE
 .idea/

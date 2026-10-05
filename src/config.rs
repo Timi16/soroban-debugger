@@ -25,6 +25,7 @@ pub struct ReplSettings {
     pub history_file: Option<String>,
     #[serde(default)]
     pub save_history: Option<bool>,
+    #[serde(default)]
     pub keybindings: Keybindings,
     #[serde(default)]
     pub repl: ReplConfig,
@@ -53,10 +54,18 @@ impl Default for KeybindingsConfig {
     }
 }
 
-fn default_step_key() -> String { "s".to_string() }
-fn default_continue_key() -> String { "c".to_string() }
-fn default_inspect_key() -> String { "i".to_string() }
-fn default_quit_key() -> String { "q".to_string() }
+fn default_step_key() -> String {
+    "s".to_string()
+}
+fn default_continue_key() -> String {
+    "c".to_string()
+}
+fn default_inspect_key() -> String {
+    "i".to_string()
+}
+fn default_quit_key() -> String {
+    "q".to_string()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DebugConfig {
@@ -115,22 +124,6 @@ impl Default for Keybindings {
             quit: default_quit_key(),
         }
     }
-}
-
-fn default_step_key() -> String {
-    "s".to_string()
-}
-
-fn default_continue_key() -> String {
-    "c".to_string()
-}
-
-fn default_inspect_key() -> String {
-    "inspect".to_string()
-}
-
-fn default_quit_key() -> String {
-    "quit".to_string()
 }
 
 impl Config {

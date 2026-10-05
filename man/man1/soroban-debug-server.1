@@ -4,7 +4,7 @@
 .SH NAME
 server \- Start debug server for remote connections
 .SH SYNOPSIS
-\fBserver\fR [\fB\-\-host\fR] [\fB\-p\fR|\fB\-\-port\fR] [\fB\-t\fR|\fB\-\-token\fR] [\fB\-\-require\-strong\-token\fR] [\fB\-\-tls\-cert\fR] [\fB\-\-tls\-key\fR] [\fB\-\-repeat\fR] [\fB\-\-storage\-filter\fR] [\fB\-\-show\-events\fR] [\fB\-\-event\-filter\fR] [\fB\-\-mock\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+\fBserver\fR [\fB\-\-host\fR] [\fB\-p\fR|\fB\-\-port\fR] [\fB\-t\fR|\fB\-\-token\fR] [\fB\-\-tls\-cert\fR] [\fB\-\-tls\-key\fR] [\fB\-\-repeat\fR] [\fB\-\-storage\-filter\fR] [\fB\-\-show\-events\fR] [\fB\-\-event\-filter\fR] [\fB\-\-mock\fR] [\fB\-h\fR|\fB\-\-help\fR] 
 .SH DESCRIPTION
 Start debug server for remote connections
 .SH OPTIONS
@@ -17,9 +17,6 @@ Port to listen on
 .TP
 \fB\-t\fR, \fB\-\-token\fR \fI<TOKEN>\fR
 Authentication token (optional, if not provided no auth required)
-.TP
-\fB\-\-require\-strong\-token\fR
-Enforce the token\-strength policy: reject startup if the auth token is shorter than 16 characters instead of only warning. Recommended in production; a random 32\-byte token is ideal
 .TP
 \fB\-\-tls\-cert\fR \fI<TLS_CERT>\fR
 TLS certificate file path (optional)

@@ -131,19 +131,6 @@ pub struct PluginTrustPolicy {
     pub allowed_signers: BTreeSet<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PluginSandboxPolicy {
-    pub allow_command_registration: bool,
-}
-
-impl Default for PluginSandboxPolicy {
-    fn default() -> Self {
-        Self {
-            allow_command_registration: true,
-        }
-    }
-}
-
 impl Default for PluginTrustPolicy {
     fn default() -> Self {
         Self::from_env()
@@ -187,18 +174,6 @@ impl PluginLoader {
     /// Create a new plugin loader with an explicit trust policy
     pub fn with_trust_policy(plugin_dir: PathBuf, trust_policy: PluginTrustPolicy) -> Self {
         Self::with_policies(plugin_dir, trust_policy, PluginSandboxPolicy::default())
-    }
-
-    pub fn with_policies(
-        plugin_dir: PathBuf,
-        trust_policy: PluginTrustPolicy,
-        sandbox_policy: PluginSandboxPolicy,
-    ) -> Self {
-        Self {
-            plugin_dir,
-            trust_policy,
-            sandbox_policy: PluginSandboxPolicy::default(),
-        }
     }
 
     pub fn with_policies(
@@ -737,6 +712,7 @@ mod tests {
     fn sandbox_policy_blocks_command_registration() {
         let sandbox = PluginSandboxPolicy {
             allow_command_registration: false,
+            ..Default::default()
         };
 
         let loader = PluginLoader::with_policies(

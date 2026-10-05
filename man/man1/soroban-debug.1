@@ -4,7 +4,7 @@
 .SH NAME
 soroban\-debug \- A debugger for Soroban smart contracts
 .SH SYNOPSIS
-\fBsoroban\-debug\fR [\fB\-q\fR|\fB\-\-quiet\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-no\-banner\fR] [\fB\-\-history\-file\fR] [\fB\-\-budget\-trend\fR] [\fB\-\-trend\-contract\fR] [\fB\-\-trend\-function\fR] [\fB\-\-trend\-regression\-threshold\-pct\fR] [\fB\-\-trend\-regression\-lookback\fR] [\fB\-\-trend\-regression\-smoothing\fR] [\fB\-\-pretty\fR] [\fB\-\-version\-verbose\fR] [\fB\-\-list\-functions\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
+\fBsoroban\-debug\fR [\fB\-q\fR|\fB\-\-quiet\fR] [\fB\-v\fR|\fB\-\-verbose\fR] [\fB\-\-no\-banner\fR] [\fB\-\-pretty\fR] [\fB\-\-history\-file\fR] [\fB\-\-budget\-trend\fR] [\fB\-\-trend\-contract\fR] [\fB\-\-trend\-function\fR] [\fB\-\-trend\-regression\-threshold\-pct\fR] [\fB\-\-trend\-regression\-lookback\fR] [\fB\-\-trend\-regression\-smoothing\fR] [\fB\-\-version\-verbose\fR] [\fB\-\-list\-functions\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fIsubcommands\fR]
 .SH DESCRIPTION
 A debugger for Soroban smart contracts
 .SH OPTIONS
@@ -17,6 +17,9 @@ Show verbose output including internal details
 .TP
 \fB\-\-no\-banner\fR
 Suppress startup banner output
+.TP
+\fB\-\-pretty\fR
+Pretty\-print JSON output (multi\-line, indented)
 .TP
 \fB\-\-history\-file\fR \fI<FILE>\fR
 Override the history file location (useful for CI, sandboxes, and per\-project isolation)
@@ -43,9 +46,6 @@ Filter budget trend by function name
 .TP
 \fB\-\-trend\-regression\-smoothing\fR \fI<N>\fR [default: 1]
 
-.TP
-\fB\-\-pretty\fR
-Pretty\-print JSON outputs instead of compact JSON
 .TP
 \fB\-\-version\-verbose\fR
 Show detailed version information
@@ -118,7 +118,7 @@ soroban\-debug\-plugin\-inspect(1)
 Inspect a specific plugin\*(Aqs capabilities and metadata
 .TP
 soroban\-debug\-doctor(1)
-Report runtime health and diagnostics for troubleshooting
+Report runtime health and diagnostics for troubleshooting, manpage drift
 .TP
 soroban\-debug\-help(1)
 Print this message or the help of the given subcommand(s)

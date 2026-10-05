@@ -294,6 +294,13 @@ impl TimelineStorageDelta {
     }
 }
 
+/// Marks the set of storage keys mutated during a single contract execution,
+/// so exports and inspectors can highlight state-changing steps.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageMutationMarker {
+    pub mutated_keys: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

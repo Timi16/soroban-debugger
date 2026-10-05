@@ -57,7 +57,7 @@ impl Stepper {
         if let Some(inst) = debug_state.current_instruction() {
             let current_triple = (
                 inst.offset,
-                debug_state.instruction_pointer().call_stack_depth(),
+                debug_state.instruction_pointer().call_stack_depth() as usize,
                 self.step_mode,
             );
 

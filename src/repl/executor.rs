@@ -35,8 +35,7 @@ impl ReplExecutor {
             .map(|sig| (sig.name.clone(), sig))
             .collect();
         let executor = ContractExecutor::new(wasm_bytes)?;
-        let mut engine =
-            crate::debugger::engine::DebuggerEngine::new(executor, Vec::new(), Vec::new());
+        let mut engine = crate::debugger::engine::DebuggerEngine::new(executor, Vec::new());
         engine.executor_mut().enable_mock_all_auths();
 
         if let Some(snapshot_path) = &config.network_snapshot {

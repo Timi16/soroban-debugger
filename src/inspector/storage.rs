@@ -716,7 +716,10 @@ impl StorageDiff {
 
     /// Extract a sorted list of all keys that were mutated (added, modified, or deleted)
     pub fn mutated_keys(&self) -> Vec<String> {
-        let mut keys: Vec<String> = self.added.keys().cloned()
+        let mut keys: Vec<String> = self
+            .added
+            .keys()
+            .cloned()
             .chain(self.modified.keys().cloned())
             .chain(self.deleted.iter().cloned())
             .collect();

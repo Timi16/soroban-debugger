@@ -3,7 +3,7 @@
 //! execution flow differences.
 
 use super::trace::{BudgetTrace, CallEntry, EventEntry, ExecutionTrace};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 // ─── Diff types ──────────────────────────────────────────────────────
@@ -21,7 +21,7 @@ pub struct ComparisonReport {
     pub event_diff: EventDiff,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CompareFiltersReport {
     pub ignore_paths: Vec<String>,
     pub ignore_fields: Vec<String>,

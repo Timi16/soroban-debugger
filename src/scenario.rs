@@ -192,7 +192,7 @@ pub fn run_scenario(args: ScenarioArgs, _verbosity: Verbosity) -> Result<()> {
         Formatter::success(format!("Running {} scenario steps...\n", steps.len()))
     );
 
-    let mut engine = DebuggerEngine::new(executor, vec![], vec![]);
+    let mut engine = DebuggerEngine::new(executor, vec![]);
     let mut all_passed = true;
     let mut variables: HashMap<String, String> = HashMap::new();
 
@@ -262,7 +262,11 @@ pub fn run_scenario(args: ScenarioArgs, _verbosity: Verbosity) -> Result<()> {
         if step.skip {
             println!(
                 "{}",
-                Formatter::info(format!("Skipping Step {} ({}): skip field set to true", i + 1, step_label))
+                Formatter::info(format!(
+                    "Skipping Step {} ({}): skip field set to true",
+                    i + 1,
+                    step_label
+                ))
             );
             continue;
         }

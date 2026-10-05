@@ -118,15 +118,15 @@ pub struct RemoteClient {
     message_id: u64,
     authenticated: bool,
     config: RemoteClientConfig,
+    /// The protocol version selected during the handshake.
     selected_protocol_version: Option<u32>,
-    session_info: Option<crate::server::protocol::RemoteSessionInfo>,
     /// Session identifier received from the server during the initial handshake.
     /// Used to reconnect to an existing session after a transient disconnect.
     session_id: Option<String>,
-    /// The protocol version selected during the handshake.
-    selected_protocol_version: Option<u32>,
     /// Metadata about the current session received from the server.
     session_info: Option<crate::server::protocol::RemoteSessionInfo>,
+    /// Capabilities advertised by the server during the handshake.
+    negotiated_capabilities: Option<crate::server::protocol::ServerCapabilities>,
 }
 
 #[derive(Debug)]
@@ -198,10 +198,9 @@ impl RemoteClient {
             authenticated: token.is_none(),
             config,
             selected_protocol_version: None,
-            session_info: None,
             session_id: None,
-            selected_protocol_version: None,
             session_info: None,
+            negotiated_capabilities: None,
         };
 
         client.handshake("rust-remote-client", env!("CARGO_PKG_VERSION"))?;
@@ -368,22 +367,20 @@ impl RemoteClient {
             idle_timeout_ms: self.config.idle_timeout_ms,
             session_label: self.config.session_label.clone(),
             reconnect_session_id: None,
+            required_capabilities: None,
         })?;
 
         match response {
             DebugResponse::HandshakeAck {
                 selected_version,
                 server_capabilities,
-                ..
-            } => {
-                self.selected_protocol_version = Some(selected_version);
-                self.negotiated_capabilities = Some(server_capabilities);
                 session_id,
                 session_created_at,
                 session_label,
                 ..
             } => {
                 self.selected_protocol_version = Some(selected_version);
+                self.negotiated_capabilities = Some(server_capabilities);
                 self.session_id = session_id.clone();
                 self.session_info =
                     session_id
@@ -535,7 +532,6 @@ impl RemoteClient {
                 paused,
                 current_function,
                 step_count,
-                pause_reason: _,
                 ..
             } => Ok((paused, current_function, step_count)),
             DebugResponse::Error { message } => Err(DebuggerError::ExecutionError(message).into()),
@@ -554,7 +550,6 @@ impl RemoteClient {
                 paused,
                 current_function,
                 step_count,
-                pause_reason: _,
                 ..
             } => Ok((paused, current_function, step_count)),
             DebugResponse::Error { message } => Err(DebuggerError::ExecutionError(message).into()),
@@ -573,7 +568,6 @@ impl RemoteClient {
                 paused,
                 current_function,
                 step_count,
-                pause_reason: _,
                 ..
             } => Ok((paused, current_function, step_count)),
             DebugResponse::Error { message } => Err(DebuggerError::ExecutionError(message).into()),
@@ -856,6 +850,7 @@ impl RemoteClient {
             idle_timeout_ms: Some(60000),
             session_label: self.config.session_label.clone(),
             reconnect_session_id: self.session_id.clone(),
+            required_capabilities: None,
         };
         // Use a standard timeout for handshake during reconnect
         let handshake_resp = self
@@ -866,7 +861,7 @@ impl RemoteClient {
 
         // Capture session_id from reconnect handshake
         if let DebugResponse::HandshakeAck { session_id, .. } = &handshake_resp {
-            self.session_id = Some(session_id.clone());
+            self.session_id = session_id.clone();
         }
 
         if let Some(token) = self.token.clone() {
@@ -1134,8 +1129,14 @@ mod request_id_tests {
         );
         match tagged {
             DebugResponse::Error { message } => {
-                assert!(message.contains("boom"), "original message preserved: {message}");
-                assert!(message.contains("request #42"), "request id appended: {message}");
+                assert!(
+                    message.contains("boom"),
+                    "original message preserved: {message}"
+                );
+                assert!(
+                    message.contains("request #42"),
+                    "request id appended: {message}"
+                );
             }
             other => panic!("expected Error, got {other:?}"),
         }
@@ -1151,7 +1152,11 @@ mod request_id_tests {
         );
         let twice = tag_error_with_request_id(once, 9);
         if let DebugResponse::Error { message } = twice {
-            assert_eq!(message.matches("request #").count(), 1, "no double-tag: {message}");
+            assert_eq!(
+                message.matches("request #").count(),
+                1,
+                "no double-tag: {message}"
+            );
             assert!(message.contains("request #7"), "keeps first id: {message}");
         } else {
             panic!("expected Error");
@@ -1401,6 +1406,8 @@ mod tests {
                     session_label: None,
                     heartbeat_interval_ms: None,
                     idle_timeout_ms: None,
+                    reconnect_id: None,
+                    server_capabilities: Default::default(),
                 },
             );
             if let Ok(json) = serde_json::to_string(&ack) {
@@ -1447,6 +1454,8 @@ mod tests {
                             session_label: None,
                             heartbeat_interval_ms: None,
                             idle_timeout_ms: None,
+                            reconnect_id: None,
+                            server_capabilities: Default::default(),
                         },
                     );
                     let json = serde_json::to_string(&response).unwrap();
@@ -1471,6 +1480,8 @@ mod tests {
                         session_label: None,
                         heartbeat_interval_ms: None,
                         idle_timeout_ms: None,
+                        reconnect_id: None,
+                        server_capabilities: Default::default(),
                     },
                 );
                 let _ = writeln!(stream, "{}", serde_json::to_string(&handshake_ack).unwrap());
@@ -1550,6 +1561,8 @@ mod tests {
                                 session_label: None,
                                 heartbeat_interval_ms: None,
                                 idle_timeout_ms: None,
+                                reconnect_id: None,
+                                server_capabilities: Default::default(),
                             },
                         );
                         let _ =
