@@ -37,6 +37,7 @@ fn symbolic_execution_with_storage_seed() {
         max_depth: 3,
         seed: None,
         storage_seed: Some(fs::read_to_string(&storage_path).unwrap()),
+        storage_read_pressure_threshold: None,
     };
 
     let report = analyzer
@@ -70,6 +71,7 @@ fn symbolic_execution_without_storage_seed() {
         max_depth: 2,
         seed: None,
         storage_seed: None,
+        storage_read_pressure_threshold: None,
     };
 
     let report = analyzer

@@ -3,8 +3,7 @@
 #[cfg(test)]
 mod capability_negotiation {
     use soroban_debugger::server::protocol::{
-        DebugMessage, DebugRequest, DebugResponse, ServerCapabilities, PROTOCOL_MAX_VERSION,
-        PROTOCOL_MIN_VERSION,
+        DebugRequest, DebugResponse, ServerCapabilities, PROTOCOL_MAX_VERSION, PROTOCOL_MIN_VERSION,
     };
 
     #[test]
@@ -86,14 +85,15 @@ mod capability_negotiation {
             protocol_max: PROTOCOL_MAX_VERSION,
             heartbeat_interval_ms: None,
             idle_timeout_ms: None,
+            session_label: None,
+            reconnect_session_id: None,
             required_capabilities: Some(required.clone()),
         };
 
         let json = serde_json::to_string(&request).expect("Should serialize");
         assert!(json.contains("required_capabilities"));
 
-        let deserialized: DebugRequest =
-            serde_json::from_str(&json).expect("Should deserialize");
+        let deserialized: DebugRequest = serde_json::from_str(&json).expect("Should deserialize");
         match deserialized {
             DebugRequest::Handshake {
                 required_capabilities: Some(caps),
@@ -116,16 +116,19 @@ mod capability_negotiation {
             protocol_min: PROTOCOL_MIN_VERSION,
             protocol_max: PROTOCOL_MAX_VERSION,
             selected_version: 1,
+            session_id: None,
+            session_created_at: None,
+            session_label: None,
             heartbeat_interval_ms: None,
             idle_timeout_ms: None,
+            reconnect_id: None,
             server_capabilities: server_caps.clone(),
         };
 
         let json = serde_json::to_string(&response).expect("Should serialize");
         assert!(json.contains("server_capabilities"));
 
-        let deserialized: DebugResponse =
-            serde_json::from_str(&json).expect("Should deserialize");
+        let deserialized: DebugResponse = serde_json::from_str(&json).expect("Should deserialize");
         match deserialized {
             DebugResponse::HandshakeAck {
                 server_capabilities: caps,
@@ -147,8 +150,7 @@ mod capability_negotiation {
         };
 
         let response = DebugResponse::IncompatibleCapabilities {
-            message: "Server does not support required capabilities: snapshot_loading"
-                .to_string(),
+            message: "Server does not support required capabilities: snapshot_loading".to_string(),
             missing_capabilities: vec!["snapshot_loading".to_string()],
             server_capabilities: server_caps.clone(),
         };
@@ -157,8 +159,7 @@ mod capability_negotiation {
         assert!(json.contains("IncompatibleCapabilities"));
         assert!(json.contains("missing_capabilities"));
 
-        let deserialized: DebugResponse =
-            serde_json::from_str(&json).expect("Should deserialize");
+        let deserialized: DebugResponse = serde_json::from_str(&json).expect("Should deserialize");
         match deserialized {
             DebugResponse::IncompatibleCapabilities {
                 missing_capabilities,

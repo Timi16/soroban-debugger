@@ -1,0 +1,26 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH preflight 1  "preflight " 
+.SH NAME
+preflight \- Run connectivity preflight checks (connect, handshake, auth, ping)
+.SH SYNOPSIS
+\fBpreflight\fR [\fB\-\-output\fR] [\fB\-h\fR|\fB\-\-help\fR] 
+.SH DESCRIPTION
+Run connectivity preflight checks (connect, handshake, auth, ping)
+.SH OPTIONS
+.TP
+\fB\-\-output\fR \fI<OUTPUT_FORMAT>\fR [default: pretty]
+Output format: pretty (default) or json
+.br
+
+.br
+\fIPossible values:\fR
+.RS 14
+.IP \(bu 2
+pretty
+.IP \(bu 2
+json
+.RE
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help

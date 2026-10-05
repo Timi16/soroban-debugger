@@ -386,12 +386,15 @@ pub fn collect_runtime_diagnostics(
     }
 
     if let Some(error) = last_error.filter(|error| !error.trim().is_empty()) {
-        diagnostics.push(DiagnosticRecord::new(
-            "execution",
-            "The most recent debugger action failed.",
-            Some(error.to_string()),
-            DiagnosticSeverity::Error,
-        ).with_category(categorize_error(error)));
+        diagnostics.push(
+            DiagnosticRecord::new(
+                "execution",
+                "The most recent debugger action failed.",
+                Some(error.to_string()),
+                DiagnosticSeverity::Error,
+            )
+            .with_category(categorize_error(error)),
+        );
     }
 
     diagnostics
@@ -569,7 +572,6 @@ impl OutputConfig {
     }
 }
 
-
 /// Status kind for text-equivalent labels (screen reader friendly).
 #[derive(Clone, Copy)]
 pub enum StatusLabel {
@@ -690,8 +692,7 @@ mod tests {
     #[test]
     fn format_timestamp_iso8601_known_value() {
         // 2025-05-27 00:00:00 UTC  =>  1748304000 seconds since epoch
-        let t = std::time::SystemTime::UNIX_EPOCH
-            + std::time::Duration::from_secs(1_748_304_000);
+        let t = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_748_304_000);
         let s = format_timestamp_iso8601(t);
         assert_eq!(s, "2025-05-27T00:00:00Z");
     }
@@ -783,8 +784,17 @@ mod tests {
 
     #[test]
     fn test_categorize_error() {
-        assert_eq!(categorize_error("Execution timed out after 30 seconds"), "timeout");
-        assert_eq!(categorize_error("Parser failure in function 'test'"), "parser_failure");
-        assert_eq!(categorize_error("Contract failure: trap"), "contract_failure");
+        assert_eq!(
+            categorize_error("Execution timed out after 30 seconds"),
+            "timeout"
+        );
+        assert_eq!(
+            categorize_error("Parser failure in function 'test'"),
+            "parser_failure"
+        );
+        assert_eq!(
+            categorize_error("Contract failure: trap"),
+            "contract_failure"
+        );
     }
 }

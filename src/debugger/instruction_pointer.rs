@@ -1,6 +1,6 @@
 //! Instruction pointer management for WASM debugging
 
-use crate::runtime::instruction::Instruction;
+use crate::runtime::instruction::{Instruction, OwnedOperator};
 use std::collections::VecDeque;
 
 /// Step mode for instruction-level debugging
@@ -124,12 +124,10 @@ impl InstructionPointer {
     /// Update call stack depth based on instruction
     pub fn update_call_stack(&mut self, instruction: &Instruction) {
         match instruction.operator {
-            wasmparser::Operator::Block { .. }
-            | wasmparser::Operator::Loop { .. }
-            | wasmparser::Operator::If { .. } => {
+            OwnedOperator::Block | OwnedOperator::Loop | OwnedOperator::If => {
                 self.block_depth += 1;
             }
-            wasmparser::Operator::End if self.block_depth > 0 => {
+            OwnedOperator::End if self.block_depth > 0 => {
                 self.block_depth -= 1;
             }
             _ => {}

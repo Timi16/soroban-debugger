@@ -384,4 +384,3 @@ fn replay_cli_json_output_matches_versioned_schema() {
 
     assert_schema_valid(&schema, &json_val, "Replay CLI JSON");
 }
-

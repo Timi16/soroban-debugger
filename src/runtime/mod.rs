@@ -25,5 +25,5 @@ pub mod result;
 pub use env::DebugEnv;
 pub use executor::ContractExecutor;
 pub use executor::{ExecutionRecord, InstructionCounts, MockCallEntry, StorageSnapshot};
-pub use instruction::{Instruction, InstructionParser};
+pub use instruction::{Instruction, InstructionParser, OwnedOperator};
 pub use instrumentation::{InstructionHook, Instrumenter};

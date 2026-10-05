@@ -161,7 +161,9 @@ impl DebugState {
         if let Some(inst) = self.current_instruction.clone() {
             // Check if it's a call and we are stepping into it
             if inst.is_call() && self.instruction_pointer.step_mode() == StepMode::StepInto {
-                if let wasmparser::Operator::Call { function_index } = inst.operator {
+                if let crate::runtime::instruction::OwnedOperator::Call { function_index } =
+                    inst.operator
+                {
                     // Find target function
                     if let Some((idx, _)) = self
                         .instructions
@@ -177,9 +179,13 @@ impl DebugState {
                         self.call_stack_mut().push(next_func_name, None);
                     }
                 }
-            } else if matches!(inst.operator, wasmparser::Operator::Return)
-                || (matches!(inst.operator, wasmparser::Operator::End)
-                    && self.instruction_pointer.block_depth() == 0)
+            } else if matches!(
+                inst.operator,
+                crate::runtime::instruction::OwnedOperator::Return
+            ) || (matches!(
+                inst.operator,
+                crate::runtime::instruction::OwnedOperator::End
+            ) && self.instruction_pointer.block_depth() == 0)
             {
                 // Function end, return to caller
                 if let Some(ret_addr) = self.instruction_pointer.pop_return_address() {

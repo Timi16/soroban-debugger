@@ -8,10 +8,7 @@ pub enum ReplCommand {
     /// No operation for empty input
     Noop,
     /// Call a contract function: call <function> [args...]
-    Call {
-        function: String,
-        args: Vec<String>,
-    },
+    Call { function: String, args: Vec<String> },
     /// Inspect storage: storage
     Storage,
     /// Show command history: history
@@ -30,13 +27,11 @@ pub enum ReplCommand {
     /// List breakpoints and hit counts: list-breaks
     ListBreaks,
     /// Clear a breakpoint: clear-break <function>
-    ClearBreak {
-        function: String,
-    },
+    ClearBreak { function: String },
     /// Open the command palette
     Palette,
+    /// List exported contract functions
     Functions,
-    Palette,
 }
 
 impl ReplCommand {
@@ -122,7 +117,6 @@ impl ReplCommand {
             "functions" => Ok(ReplCommand::Functions),
             "clear" => Ok(ReplCommand::Clear),
             "help" => Ok(ReplCommand::Help),
-            "palette" => Ok(ReplCommand::Palette),
             "exit" | "quit" => Ok(ReplCommand::Exit),
             _ => Err(miette::miette!(
                 "Unknown command: '{}'. Type 'help' for available commands.",

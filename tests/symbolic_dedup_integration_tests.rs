@@ -73,6 +73,7 @@ fn same_seed_produces_identical_exploration_order() {
         max_depth: 3,
         seed: Some(12345),
         storage_seed: None,
+        storage_read_pressure_threshold: None,
     };
 
     let report_a = analyzer
@@ -112,6 +113,7 @@ fn different_seeds_produce_different_exploration_order() {
         max_depth: 2,
         seed: Some(1),
         storage_seed: None,
+        storage_read_pressure_threshold: None,
     };
     let config_b = SymbolicConfig {
         seed: Some(2),

@@ -355,14 +355,12 @@ impl DashboardApp {
             self.last_error.as_deref(),
         );
 
-        let logs: Vec<_> = self
         let recent_alerts: Vec<_> = self
             .log_entries
             .iter()
             .filter(|entry| matches!(entry.level, LogLevel::Warn | LogLevel::Error))
             .collect();
-        
-        for entry in logs.iter().rev().take(8).rev() {
+
         for entry in recent_alerts
             .into_iter()
             .rev()
@@ -663,115 +661,6 @@ impl DashboardApp {
                 self.diagnostics_scroll_state = self.diagnostics_scroll_state.position(new_sel);
             }
         }
-    }
-
-    fn clamp_storage_selection(&mut self) {
-        let len = self.storage_entries.len();
-        if len == 0 {
-            self.storage_selected = 0;
-            self.storage_state.select(None);
-        } else {
-            self.storage_selected = self.storage_selected.min(len - 1);
-            self.storage_state.select(Some(self.storage_selected));
-        }
-    }
-
-    fn sync_storage_scroll_state(&mut self) {
-        let len = self.storage_entries.len();
-        self.storage_scroll_state = self
-            .storage_scroll_state
-            .content_length(len)
-            .position(self.storage_selected);
-    }
-
-    fn move_storage_selection(&mut self, delta: i32) {
-        let len = self.storage_entries.len();
-        if len == 0 { return; }
-        let new_sel = if delta >= 0 {
-            self.storage_selected.saturating_add(delta as usize).min(len - 1)
-        } else {
-            self.storage_selected.saturating_sub(delta.abs() as usize)
-        };
-        self.storage_selected = new_sel;
-        self.storage_state.select(Some(new_sel));
-        self.sync_storage_scroll_state();
-    }
-
-    fn move_storage_page(&mut self, delta: i32) {
-        let page = self.storage_page_size;
-        self.move_storage_selection(delta * (page as i32));
-    }
-
-    fn move_storage_to_boundary(&mut self, end: bool) {
-        let len = self.storage_entries.len();
-        if len == 0 { return; }
-        self.storage_selected = if end { len - 1 } else { 0 };
-        self.storage_state.select(Some(self.storage_selected));
-        self.sync_storage_scroll_state();
-    }
-
-    fn open_storage_input(&mut self, mode: StorageInputMode) {
-        self.storage_input_mode = Some(mode);
-        self.storage_input_value = String::new();
-    }
-
-    fn clear_storage_filter(&mut self) {
-        self.storage_filter = String::new();
-        self.storage_input_mode = None;
-        self.refresh_state();
-    }
-
-    fn handle_storage_input_key(&mut self, key: crossterm::event::KeyEvent) -> bool {
-        if let Some(mode) = self.storage_input_mode {
-            match key.code {
-                KeyCode::Esc => {
-                    self.storage_input_mode = None;
-                }
-                KeyCode::Enter => {
-                    match mode {
-                        StorageInputMode::Filter => {
-                            self.storage_filter = self.storage_input_value.clone();
-                        }
-                        StorageInputMode::Jump => {
-                            if let Ok(idx) = self.storage_input_value.parse::<usize>() {
-                                self.storage_selected = idx.saturating_sub(1);
-                                self.clamp_storage_selection();
-                            }
-                        }
-                    }
-                    self.storage_input_mode = None;
-                    self.refresh_state();
-                }
-                KeyCode::Char(c) => {
-                    self.storage_input_value.push(c);
-                }
-                KeyCode::Backspace => {
-                    self.storage_input_value.pop();
-                }
-                _ => {}
-            }
-            return true;
-        }
-        false
-    }
-
-    fn storage_filtered_len(&self) -> usize {
-        self.storage_entries.len()
-    }
-
-    fn storage_page(&self) -> crate::inspector::storage::StoragePage {
-        let entries = self.storage_entries.clone();
-        let query = crate::inspector::storage::StorageQuery {
-            filter: if self.storage_filter.is_empty() { None } else { Some(self.storage_filter.clone()) },
-            jump_to: None,
-            page: self.storage_selected / self.storage_page_size.max(1),
-            page_size: self.storage_page_size,
-        };
-        crate::inspector::storage::StorageInspector::build_page(&entries, &query)
-    }
-
-    fn set_storage_page_size(&mut self, size: usize) {
-        self.storage_page_size = size;
     }
 }
 

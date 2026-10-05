@@ -257,7 +257,7 @@ impl RepeatRunner {
                 executor.set_initial_storage(storage.clone())?;
             }
 
-            let mut engine = DebuggerEngine::new(executor, self.breakpoints.clone(), vec![]);
+            let mut engine = DebuggerEngine::new(executor, self.breakpoints.clone());
 
             let start = Instant::now();
             let result = engine.execute(function, args)?;

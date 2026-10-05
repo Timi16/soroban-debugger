@@ -8,11 +8,11 @@
 //! - [`super::invoker`] â€” Function invocation with timeout protection.
 //! - [`super::result`]  â€” Result types and formatting helpers.
 
+use crate::debugger::timeline::StorageMutationMarker;
 use crate::inspector::budget::MemorySummary;
 use crate::output::InvocationReason;
 use crate::runtime::env::DebugEnv;
 use crate::runtime::mocking::{MockCallLogEntry, MockContractDispatcher, MockRegistry};
-use crate::debugger::timeline::StorageMutationMarker;
 use crate::server::protocol::{DynamicTraceEvent, DynamicTraceEventKind};
 use crate::utils::arguments::ArgumentParser;
 use crate::{DebuggerError, Result};
@@ -200,6 +200,12 @@ impl ContractExecutor {
                 // Key still exists, assume it was read (at minimum)
                 self.debug_env.track_storage_read(key);
             }
+        }
+
+        if mutated_keys.is_empty() {
+            None
+        } else {
+            Some(StorageMutationMarker { mutated_keys })
         }
     }
 

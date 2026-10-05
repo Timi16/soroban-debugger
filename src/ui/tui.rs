@@ -59,16 +59,6 @@ impl DebuggerUI {
         self.last_error = None;
     }
 
-    pub fn parse_storage_display_options(_parts: &[&str]) -> crate::Result<StorageDisplayOptions> {
-        // Basic implementation for now
-        Ok(StorageDisplayOptions {
-            filter: None,
-            jump_to: None,
-            page: 0,
-            page_size: 20,
-        })
-    }
-
     pub fn last_output(&self) -> Option<&str> {
         self.last_output.as_deref()
     }
@@ -530,14 +520,4 @@ impl DebuggerUI {
             crate::logging::LogLevel::Info,
         );
     }
-
-    fn show_palette(&mut self) -> Result<()> {
-        crate::logging::log_display(
-            "Command palette not yet implemented in this view",
-            crate::logging::LogLevel::Warn,
-        );
-        Ok(())
-    }
 }
-
-/////////////////

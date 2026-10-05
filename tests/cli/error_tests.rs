@@ -375,17 +375,18 @@ fn test_inspect_with_empty_contract_file() {
 #[test]
 fn test_json_error_wasm_load_failure() {
     let mut cmd = assert_cmd::Command::cargo_bin("soroban-debug").expect("Failed to find binary");
-    let output = cmd.args([
-        "run",
-        "--contract",
-        "/nonexistent/path/contract.wasm",
-        "--function",
-        "test",
-        "--output",
-        "json",
-    ])
-    .output()
-    .expect("Failed to execute command");
+    let output = cmd
+        .args([
+            "run",
+            "--contract",
+            "/nonexistent/path/contract.wasm",
+            "--function",
+            "test",
+            "--output",
+            "json",
+        ])
+        .output()
+        .expect("Failed to execute command");
 
     // The exit status should still be failure
     assert!(!output.status.success());
@@ -398,29 +399,48 @@ fn test_json_error_wasm_load_failure() {
     assert_eq!(json_val["command"], "run");
     assert_eq!(json_val["status"], "error");
     assert!(json_val["result"].is_null());
-    
-    let error_obj = json_val["error"].as_object().expect("error field should be an object");
-    assert!(error_obj.get("message").unwrap().as_str().unwrap().contains("Failed to read WASM file"));
-    assert_eq!(error_obj.get("code").unwrap().as_str().unwrap(), "debugger::wasm_load_failed");
-    assert_eq!(error_obj.get("category").unwrap().as_str().unwrap(), "contract_failure");
-    assert!(error_obj.get("suggestion").unwrap().as_str().unwrap().contains("Check the file path"));
+
+    let error_obj = json_val["error"]
+        .as_object()
+        .expect("error field should be an object");
+    assert!(error_obj
+        .get("message")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .contains("Failed to read WASM file"));
+    assert_eq!(
+        error_obj.get("code").unwrap().as_str().unwrap(),
+        "debugger::wasm_load_failed"
+    );
+    assert_eq!(
+        error_obj.get("category").unwrap().as_str().unwrap(),
+        "contract_failure"
+    );
+    assert!(error_obj
+        .get("suggestion")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .contains("Check the file path"));
 }
 
 #[test]
 fn test_json_error_invalid_function() {
     let wasm_path = "tests/fixtures/wasm/counter.wasm";
     let mut cmd = assert_cmd::Command::cargo_bin("soroban-debug").expect("Failed to find binary");
-    let output = cmd.args([
-        "run",
-        "--contract",
-        wasm_path,
-        "--function",
-        "nonexistent_function",
-        "--output",
-        "json",
-    ])
-    .output()
-    .expect("Failed to execute command");
+    let output = cmd
+        .args([
+            "run",
+            "--contract",
+            wasm_path,
+            "--function",
+            "nonexistent_function",
+            "--output",
+            "json",
+        ])
+        .output()
+        .expect("Failed to execute command");
 
     // The exit status should still be failure
     assert!(!output.status.success());
@@ -434,10 +454,27 @@ fn test_json_error_invalid_function() {
     assert_eq!(json_val["status"], "error");
     assert!(json_val["result"].is_null());
 
-    let error_obj = json_val["error"].as_object().expect("error field should be an object");
-    assert!(error_obj.get("message").unwrap().as_str().unwrap().contains("Invalid function name"));
-    assert_eq!(error_obj.get("code").unwrap().as_str().unwrap(), "debugger::invalid_function");
-    assert_eq!(error_obj.get("category").unwrap().as_str().unwrap(), "parser_failure");
-    assert!(error_obj.get("suggestion").unwrap().as_str().unwrap().contains("Ensure the function name is spelled exactly"));
+    let error_obj = json_val["error"]
+        .as_object()
+        .expect("error field should be an object");
+    assert!(error_obj
+        .get("message")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .contains("Invalid function name"));
+    assert_eq!(
+        error_obj.get("code").unwrap().as_str().unwrap(),
+        "debugger::invalid_function"
+    );
+    assert_eq!(
+        error_obj.get("category").unwrap().as_str().unwrap(),
+        "parser_failure"
+    );
+    assert!(error_obj
+        .get("suggestion")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .contains("Ensure the function name is spelled exactly"));
 }
-

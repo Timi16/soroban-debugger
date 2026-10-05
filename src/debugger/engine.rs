@@ -1,4 +1,4 @@
-gituse crate::debugger::breakpoint::{BreakpointManager, BreakpointSpec, ConditionEvaluator};
+use crate::debugger::breakpoint::{BreakpointManager, BreakpointSpec, ConditionEvaluator};
 use crate::debugger::instruction_pointer::StepMode;
 use crate::debugger::source_map::{SourceLocation, SourceMap};
 use crate::debugger::state::{DebugState, PauseReason};
@@ -9,6 +9,7 @@ use crate::runtime::executor::ContractExecutor;
 use crate::runtime::instruction::Instruction;
 use crate::runtime::instrumentation::Instrumenter;
 use crate::Result;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::info;
 
@@ -317,25 +318,9 @@ impl DebuggerEngine {
         if check_breakpoints {
             let storage = self.executor.get_storage_snapshot().unwrap_or_default();
             let evaluator = EngineConditionEvaluator::new(storage, function, args);
-            let (should_pause, log_output) = self
-                .breakpoints_mut()
-                .should_break_with_context(function, &evaluator)?;
-
-            if let Some(message) = log_output {
-                crate::logging::log_breakpoint_log(function, &message);
-                println!("{message}");
-            }
-
-            if should_pause {
-                let condition = self
-                    .breakpoints()
-                    .get_breakpoint(function)
-                    .and_then(|bp| bp.condition.clone());
-                self.pause_at_function(function, condition);
-            let evaluator = self.create_condition_evaluator();
             match self
                 .breakpoints
-                .should_break_with_context(function, evaluator.as_ref())
+                .should_break_with_context(function, &evaluator)
             {
                 Ok((should_pause, log_message)) => {
                     if let Some(msg) = log_message {
@@ -815,51 +800,6 @@ impl DebuggerEngine {
             state.increment_step();
         }
         Ok(())
-    }
-
-    /// Create a condition evaluator for breakpoint evaluation
-    fn create_condition_evaluator(&self) -> Box<dyn ConditionEvaluator> {
-        Box::new(DebugStateEvaluator {
-            state: Arc::clone(&self.state),
-        })
-    }
-}
-
-/// Evaluates breakpoint conditions by reading from debug state
-struct DebugStateEvaluator {
-    state: Arc<Mutex<DebugState>>,
-}
-
-impl ConditionEvaluator for DebugStateEvaluator {
-    fn evaluate(&self, condition: &str) -> crate::Result<bool> {
-        // Simple evaluation - can be enhanced later with full expression parsing
-        // For now, return true to not block execution
-        tracing::debug!("Evaluating condition: {}", condition);
-        Ok(true)
-    }
-
-    fn interpolate_log(&self, template: &str) -> crate::Result<String> {
-        // Extract function name and args from state and interpolate
-        if let Ok(state) = self.state.lock() {
-            let mut result = template.to_string();
-
-            // Interpolate {function} placeholder
-            if let Some(func) = state.current_function() {
-                result = result.replace("{function}", func);
-            }
-
-            // Interpolate {args} placeholder
-            if let Some(args) = state.current_args() {
-                result = result.replace("{args}", args);
-            }
-
-            // Interpolate {step_count} placeholder
-            result = result.replace("{step_count}", &state.step_count().to_string());
-
-            Ok(result)
-        } else {
-            Ok(template.to_string())
-        }
     }
 }
 

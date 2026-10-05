@@ -5,9 +5,12 @@
 remote \- Connect to remote debug server
 .SH SYNOPSIS
 \fBremote\fR <\fB\-r\fR|\fB\-\-remote\fR> [\fB\-t\fR|\fB\-\-token\fR] [\fB\-c\fR|\fB\-\-contract\fR] [\fB\-f\fR|\fB\-\-function\fR] [\fB\-\-tls\-cert\fR] [\fB\-\-tls\-key\fR] [\fB\-\-tls\-ca\fR] [\fB\-\-session\-label\fR] [\fB\-a\fR|\fB\-\-args\fR] [\fB\-\-connect\-timeout\-ms\fR] [\fB\-\-timeout\-ms\fR] [\fB\-\-inspect\-timeout\-ms\fR] [\fB\-\-storage\-timeout\-ms\fR] [\fB\-\-retry\-attempts\fR] [\fB\-\-retry\-base\-delay\-ms\fR] [\fB\-\-retry\-max\-delay\-ms\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIremote and server\fR]
-\fBremote\fR <\fB\-r\fR|\fB\-\-remote\fR> [\fB\-t\fR|\fB\-\-token\fR] [\fB\-c\fR|\fB\-\-contract\fR] [\fB\-f\fR|\fB\-\-function\fR] [\fB\-\-tls\-cert\fR] [\fB\-\-tls\-key\fR] [\fB\-\-tls\-ca\fR] [\fB\-\-session\-label\fR] [\fB\-a\fR|\fB\-\-args\fR] [\fB\-\-connect\-timeout\-ms\fR] [\fB\-\-timeout\-ms\fR] [\fB\-\-inspect\-timeout\-ms\fR] [\fB\-\-storage\-timeout\-ms\fR] [\fB\-\-retry\-attempts\fR] [\fB\-\-retry\-base\-delay\-ms\fR] [\fB\-\-retry\-max\-delay\-ms\fR] [\fB\-\-format\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fIremote and server\fR]
 .SH DESCRIPTION
 Connect to remote debug server
+.PP
+Examples: soroban\-debug remote \-\-remote localhost:9229 \-\-token "$TOKEN" soroban\-debug remote \-\-remote 10.0.0.15:9229 \-\-token "$TOKEN" \-\-tls\-ca /path/to/server\-ca.pem
+.PP
+For TLS and connection issues, see the remote troubleshooting guide: https://github.com/Timi16/soroban\-debugger/blob/main/docs/remote\-troubleshooting.md
 .SH OPTIONS
 .TP
 \fB\-r\fR, \fB\-\-remote\fR \fI<REMOTE>\fR
@@ -50,9 +53,6 @@ May also be specified with the \fBSOROBAN_DEBUG_CONNECT_TIMEOUT_MS\fR environmen
 \fB\-\-timeout\-ms\fR \fI<MS>\fR [default: 30000]
 Per\-request timeout in milliseconds for regular operations (execute, storage, inspect).
 
-Use \-\-inspect\-timeout\-ms and \-\-storage\-timeout\-ms when you need a higher timeout for
-only one read\-only request class.
-
 Default: 30 000 ms (30 seconds).
 .RS
 May also be specified with the \fBSOROBAN_DEBUG_REQUEST_TIMEOUT_MS\fR environment variable. 
@@ -77,36 +77,17 @@ May also be specified with the \fBSOROBAN_DEBUG_STORAGE_TIMEOUT_MS\fR environmen
 \fB\-\-retry\-attempts\fR \fI<N>\fR [default: 3]
 Maximum number of retry attempts for idempotent requests (ping, inspect, storage).
 
-Must be at least 1.  Use 1 to disable retries entirely (one attempt, no retry).
-
 Default: 3.
 .TP
 \fB\-\-retry\-base\-delay\-ms\fR \fI<MS>\fR [default: 200]
 Base delay in milliseconds between retry attempts (exponential back\-off).
-
-Must be greater than 0 and no larger than \-\-retry\-max\-delay\-ms.
 
 Default: 200 ms.
 .TP
 \fB\-\-retry\-max\-delay\-ms\fR \fI<MS>\fR [default: 2000]
 Maximum delay in milliseconds between retry attempts.
 
-Must be greater than or equal to \-\-retry\-base\-delay\-ms.
-
 Default: 2 000 ms.
-.TP
-\fB\-\-format\fR \fI<FORMAT>\fR [default: pretty]
-Output format for remote command (pretty, json)
-.br
-
-.br
-\fIPossible values:\fR
-.RS 14
-.IP \(bu 2
-pretty
-.IP \(bu 2
-json
-.RE
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print help (see a summary with \*(Aq\-h\*(Aq)
@@ -122,7 +103,7 @@ remote\-evaluate(1)
 Evaluate an expression in the current debug context
 .TP
 remote\-preflight(1)
-Run a preflight check: connect, handshake, auth, and optional TLS validation without loading a contract. Suitable for CI health checks and troubleshooting
+Run connectivity preflight checks (connect, handshake, auth, ping)
 .TP
 remote\-help(1)
 Print this message or the help of the given subcommand(s)
